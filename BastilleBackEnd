@@ -1,0 +1,389 @@
+#!/usr/bin/perl
+##############################################################################
+# Copyright (C) 1999, 2000 Jay Beale
+# Copyright (C) 2001-2003, 2005 Hewlett Packard Development Company, L.P.
+# Licensed under the GNU General Public License, version 2
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#############################################################################
+
+##############################################################################
+# This is the Back End to Bastille Linux, a hardening program for Linux.     #
+# Its counterpart is found in the InteractiveBastille or AutomatedBastille   #
+# program, which writes the configuration file used for this.                #
+#                                                                            #
+# The Bastille Front End and Back End were written by and are currently      #
+# maintained by Bastille Linux's Lead Developer, Jay Beale.                  #
+#                                                                            #
+# The original content for Bastille was assembled by Jay Beale using many    #
+# documents, including SANS' Securing Linux Step by Step, Kurt Seifried's    #
+# Linux Administrators Security Guide, and many other pieces, including the  #
+# Security HOWTO, the Unix Security Handbook, the Solaris Security FAQ and   #
+# various magazine articles in LinuxWorld and SunWorld.                      #
+#                                                                            #
+##############################################################################
+
+
+## Our use of modules is somewhat strange for Perl: we have a main routine
+## in each module which runs on the "use" command.
+
+use lib "/usr/lib","/usr/lib/perl5/site_perl/","/usr/lib/Bastille","/usr/lib64";
+use Getopt::Long;
+use File::Copy;
+
+use Bastille::API;
+
+
+# Process command-line arguments...
+my $nodisclaim = 0;
+my $verbose = 0;
+my $force = 0;
+my $log_only = 0;
+my $debug = 0;
+my $alternate_config=undef;
+
+if( Getopt::Long::GetOptions( "n"     => \$nodisclaim,
+                              "v"     => \$verbose,
+                              "force" => \$force,
+#			      "log"   => \$log_only, # broken
+			      "f:s"   => \$alternate_config,
+			      "debug" => \$debug) ) {
+    $error = 0; # no parse error
+
+} else {
+    $error = 1; # parse error
+}
+
+&setOptions($debug,$log_only,$verbose);
+&ConfigureForDistro;
+
+if ( $error ) { # GetOptions couldn't parse all of the args
+    # can't use B_log before "prepare to run"
+    print "ERROR:\n",&getGlobal('ERROR',"usage") . "\n";
+    exit(1);
+}
+
+if (defined($alternate_config)) {
+    &setGlobal("BFILE","current_config",$alternate_config);
+}
+
+print "NOTE:    Bastille is scanning the system configuration...\n\n";
+
+require Bastille::IOLoader;
+import Bastille::IOLoader;
+
+use Bastille::API::FileContent;        # for B_TODOFlags, etc
+use Bastille::API::Miscellaneous;    # for PrepareToRun etc;
+
+&PrepareToRun;
+&showDisclaimer($nodisclaim);
+
+# Data Checking
+# Loading Questions database for investigation and data validation
+$Question{"Title_Screen"}{'proper_parent'}="Title_Screen";
+$Question{"Title_Screen"}{'yes_child'}="End_Screen";
+
+$Question{"End_Screen"}{'proper_parent'}="Title_Screen";
+$Question{"End_Screen"}{'yes_child'}="End_Screen";
+
+
+my $first_question = &Load_Questions('Y');
+my $current_config = &getGlobal('BFILE', "current_config");
+# Load in user's config file
+
+unless (&ReadConfig($current_config)) {
+   &B_log("ERROR","Could not read config file: " .
+	  "$current_config \n");
+   exit(1);
+}
+
+if($force) {
+    &compareQandA($first_question,$force);
+}
+else {
+    &compareQandA($first_question,$force);
+    &validateAnswers;
+}
+
+unless ( $GLOBAL_LOGONLY ) {
+# GLOBAL_LOGONLY is broken, but leaving this conditional in, in case someone feels
+# like trying to fix it
+# The original purpose for the conditional was to avoid writing the lock
+	if (-e &getGlobal('BFILE',"lockfile")){ # protect against simultaneous runs of Bastille
+		&B_log ("ERROR","Another copy of bastille is currently making changes.\n".
+				"        If you are sure yours is the only Bastille process running, \n".
+				"        delete the file\n" .
+				"           " . &getGlobal('BFILE','lockfile')."\n".
+				"        to reset lock.\n");
+		exit 1;
+	}else{
+		system (&getGlobal('BIN',"touch")." ". &getGlobal('BFILE',"lockfile"));
+	}
+
+	&B_log("NOTE","Bastille is now locking down your system in accordance with your " .
+	       "answers in ".$current_config . ".  Please be patient as some modules " .
+	       "may take a number of minutes, depending on the speed of your machine.\n\n");
+
+
+} # of unless GLOBAL_LOGONLY
+#######################################################################
+##     Network Interface Protection/IPCHAINS/Personal Firewalling    ##
+#######################################################################
+if(&isConfigDefined("Firewall")){
+    &B_log("NOTE", "Executing Firewall Specific Configuration\n");
+    require Bastille::Firewall;
+    import  Bastille::Firewall;
+}
+
+#######################################################################
+##                      Port Scan Attack Detection                   ##
+#######################################################################
+
+if(&isConfigDefined("PSAD")){
+    &B_log("NOTE", "Executing PSAD Specific Configuration\n");
+    require Bastille::PSAD;
+    import  Bastille::PSAD;
+}
+
+#######################################################################
+##                            File Permissions                       ##
+#######################################################################
+if(&isConfigDefined("FilePermissions")){
+    &B_log("NOTE", "Executing File Permissions Specific Configuration\n");
+    require Bastille::FilePermissions;
+    import  Bastille::FilePermissions;
+}
+
+#######################################################################
+##                          Miscellaneous Daemons                    ##
+#######################################################################
+# Has to be before Account Security to deactivate NIS *before* AccountSecurity
+# runs into problems with it.
+
+if(&isConfigDefined("MiscellaneousDaemons")){
+    &B_log("NOTE", "Executing Daemon Specific Configuration\n");
+    require  Bastille::MiscellaneousDaemons;
+    import   Bastille::MiscellaneousDaemons;
+}
+
+
+#######################################################################
+##                     Account Creation/Security                     ##
+#######################################################################
+if(&isConfigDefined("AccountSecurity")){
+    &B_log("NOTE", "Executing Account Security Specific Configuration\n");
+    require Bastille::AccountSecurity;
+    import  Bastille::AccountSecurity;
+}
+
+#######################################################################
+##                Protecting LILO and single user mode               ##
+#######################################################################
+if(&isConfigDefined("BootSecurity")){
+    &B_log("NOTE", "Executing Boot Security Specific Configuration\n");
+    require Bastille::BootSecurity;
+    import  Bastille::BootSecurity;
+}
+
+#######################################################################
+##                    inetd / TCP Wrappers Configuration             ##
+#######################################################################
+
+if(&isConfigDefined("SecureInetd")){
+    &B_log("NOTE", "Executing Inetd Specific Configuration\n");
+    require  Bastille::SecureInetd;
+    import   Bastille::SecureInetd;
+}
+
+#######################################################################
+##                      Disabling of User Space Tools                ##
+#######################################################################
+if(&isConfigDefined("DisableUserTools")){
+    &B_log("NOTE", "Executing User Tool Specific Configuration\n");
+    require Bastille::DisableUserTools;
+    import  Bastille::DisableUserTools;
+}
+
+#######################################################################
+##    Misc. Pluggable Authentication Modules (PAM) Configuration     ##
+#######################################################################
+
+if(&isConfigDefined("ConfigureMiscPAM")){
+    &B_log("NOTE", "Executing PAM Specific Configuration\n");
+    require Bastille::ConfigureMiscPAM;
+    import  Bastille::ConfigureMiscPAM;
+}
+
+#######################################################################
+##                               Logging                             ##
+#######################################################################
+if(&isConfigDefined("Logging")){
+    &B_log("NOTE", "Executing Logging Specific Configuration\n");
+    require  Bastille::Logging;
+    import   Bastille::Logging;
+}
+
+#######################################################################
+#######################################################################
+####                            System Daemons                     ####
+#######################################################################
+#######################################################################
+
+#######################################################################
+##                               Sendmail                            ##
+#######################################################################
+if(&isConfigDefined("Sendmail")){
+    &B_log("NOTE", "Executing Sendmail Specific Configuration\n");
+    require Bastille::Sendmail;
+    import  Bastille::Sendmail;
+}
+
+#######################################################################
+##                             DNS/BIND/NAMED                        ##
+#######################################################################
+if(&isConfigDefined("DNS")){
+    &B_log("NOTE", "Executing DNS Specific Configuration\n");
+    require Bastille::DNS;
+    import  Bastille::DNS;
+}
+
+#######################################################################
+##                              HTTP/APACHE                          ##
+#######################################################################
+if(&isConfigDefined("Apache")){
+    &B_log("NOTE", "Executing Apache Specific Configuration\n");
+    require  Bastille::Apache;
+    import   Bastille::Apache;
+}
+
+#######################################################################
+##                                lpr/lpd                            ##
+#######################################################################
+if(&isConfigDefined("Printing")){
+    &B_log("NOTE", "Executing Printing Specific Configuration\n");
+    require  Bastille::Printing;
+    import   Bastille::Printing;
+}
+
+#######################################################################
+##                                  FTP                              ##
+#######################################################################
+
+if(&isConfigDefined("FTP")){
+    &B_log("NOTE", "Executing FTP Specific Configuration\n");
+    require Bastille::FTP;
+    import  Bastille::FTP;
+}
+
+#######################################################################
+##                                 TMPDIR			    ##
+#######################################################################
+if(&isConfigDefined("TMPDIR")){
+    &B_log("NOTE", "Executing Temporary Directory Specific Configuration\n");
+    require Bastille::TMPDIR;
+    import  Bastille::TMPDIR;
+}
+
+#######################################################################
+##            HP-UX Security Patch Check Configuration               ##
+#######################################################################
+if(&isConfigDefined("Patches")){
+    &B_log("NOTE", "Executing HP-UX's Security Patch Check Configuration\n");
+    require Bastille::Patches;
+    import Bastille::Patches;
+}
+
+
+#######################################################################
+##                            HP-UX OS Specific                      ##
+#######################################################################
+if(&isConfigDefined("HP_UX")){
+    &B_log("NOTE", "Executing HP-UX Specific Configuration\n");
+    require Bastille::HP_UX;
+    import  Bastille::HP_UX;
+}
+
+#######################################################################
+##                       IPFilter Configuration                      ##
+#######################################################################
+# Moved last to delay netowrk freeze until last module
+if(&isConfigDefined("IPFilter")){
+    &B_log("NOTE", "Executing IPFilter Configuration\n");
+    require Bastille::IPFilter;
+    import  Bastille::IPFilter;
+    &Bastille::IPFilter::run;
+}
+
+#######################################################################
+##              Point user at TODO list, if it exists, and           ##
+##              save any TODO Flags generated during the lockdown    ##
+#######################################################################
+if ( -e &getGlobal('BFILE','TODO') ) {
+    &B_log("NOTE","Please check " . &getGlobal('BFILE','TODO') .
+		   " for further instructions on how to secure your system.\n\n");
+}
+&B_TODOFlags("save");  # All done with the TODO Flags
+
+#######################################################################
+##          Setting all file sums recorded to a post bastille state  ##
+#######################################################################
+for my $file (sort keys %GLOBAL_SUM) {
+    &B_set_sum($file);
+}
+
+
+#######################################################################
+##              Copying current config to last.config for            ##
+##              logging purposes and remove the lockfile             ##
+#######################################################################
+copy(&getGlobal("BFILE","current_config") , &getGlobal('BFILE',"last.config"));
+
+unless (unlink &getGlobal('BFILE',"lockfile")){  # Remove lockfile
+    &B_log("ERROR", "Unable to delete Bastille lock file: " . &getGlobal('BFILE',"lockfile") . "\n\n" );
+}
+
+
+#######################################################################
+##              Point user at the ErrorLog, if it was used           ##
+#######################################################################
+
+my $default_baseline = &getGlobal("BFILE","default_baseline");
+
+if( defined $errorFlag ) {
+    &B_log("WARNING","Non-fatal warnings and errors have occurred in the configuration of this system.  " .
+	   "Please view the following file for more details:\n\n" .
+	   &getGlobal('BFILE',"error-log") . "\n\n");
+    if ((&GetDistro =~ "HP-UX") and (not(-e $default_baseline))) {
+        &B_log("WARNING","Since non-fatal warnings ocurred, no security ".
+               "baseline will be saved.");
+    }
+    # Exiting with a warning flag as non fatal errors have occurred.
+    exit(2);
+} else {    # Execution went without warning or fatal error.
+
+    # Here we set a semaphore to populate an initial system baseline
+    # if there wasn't one yet. This file is detected by the "bastille"
+    # script.  If the file is present, it runs bastille again to estalish
+    # a baseline.
+    if ((&GetDistro =~ "HP-UX") and (not(-e $default_baseline))) {
+        my $touch = &getGlobal("BIN","touch");
+        my $baseline_flag = &getGlobal("BFILE","baseline_flag");
+        &B_log("DEBUG","First successful Bastille run so Bastille " .
+               "will create a baseline for later reference at: " .
+               $default_baseline);
+        system("$touch $baseline_flag");
+    }
+    exit(0);
+}

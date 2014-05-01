@@ -1,0 +1,274 @@
+FILE: PSAD.pm
+
+LABEL: psad_config
+SHORT_EXP: "Bastille provides the option to configure psad (the Port Scan Attack
+Detector), which analyzes information gathered in firewall logs to determine whether
+or not someone is scanning your machine.  Psad features a set of flexible thresholds
+(with sensible defaults provided) that are used to define what constitutes a port
+scan, detection for advanced port scans (syn, fin, Xmas) that are easily leveraged
+against a machine via nmap, email alerts that contain the source and destination ip
+addresses, the range of scanned ports, begin and end times, tcp flags set in the
+scanning packets, reverse dns and whois information, DShield alerting, passive OS
+fingerprinting, auto-blocking of scanning ip addresses (disabled by default), and
+more.  In addition psad incorporates many of the tcp, udp, and icmp rules included
+in the snort intrusion detection system to detect probes for back-door and DDoS
+programs.
+
+*** psad must be installed before the Bastille can configure it, but if you
+answer the following questions you can have Bastille apply your configuration
+after installing psad.  The latest version of psad can be downloaded from
+http://www.cipherdyne.org/psad/
+
+NOTE: For psad to be effective, it is required that the firewall is active."
+QUESTION: "Would you like to setup psad?"
+REQUIRE_DISTRO: LINUX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: N
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_check_interval
+SKIP_CHILD: End_Screen
+NO_CHILD: End_Screen
+SKIP_CHILD: End_Screen
+PROPER_PARENT: ip_advnetwork
+
+LABEL: psad_check_interval
+SHORT_EXP: "This controls how often psad checks for packet that have been denied by
+the firewall. A good default is 15 seconds.
+
+It is important to not set this value too high because psad alerts are sent when the
+interval ends and it is important to determine when your machine is being scanned as
+quickly as possible.  Also, setting the value too low can make psad quickly generate
+alerts and utilize much of your systems resources if your machine is subjected to a
+high-traffic scan."
+QUESTION: "psad check interval: [15]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: 15
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_port_range_scan_threshold
+NO_CHILD: psad_port_range_scan_threshold
+PROPER_PARENT: psad_config
+
+LABEL: psad_port_range_scan_threshold
+SHORT_EXP: "Psad has been designed to allow the administrator to define what network
+traffic constitutes a port scan. This value determines a minimum range of ports that
+must be scanned from interval to interval before an alert will be sent.  For example,
+if this value is set to 0, psad will consider that multiple packets to the same port
+qualify as a port scan. However if this value is set to 10 then there must be a
+difference of 10 ports in a scan before psad considers it as such.
+
+The default is 1 which means that unless at least two ports are scanned psad will
+ignore the traffic. This also implies that multiple packets sent to the same port do
+not qualify as a port scan."
+QUESTION: "Port range scan threshold: [1]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: 1
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_enable_persistence
+NO_CHILD: psad_enable_persistence
+PROPER_PARENT: psad_check_interval
+
+LABEL: psad_enable_persistence
+SHORT_EXP: "Detecting port scans is all about setting thresholds for the number of
+ports scanned within a fixed period of time. Hence, an attacker can try to slip beneath
+the threshold by using a long time interval (hours or even days) between scanning each
+port on a target machine. Setting this value to Y will configure psad to keep a
+summary of all scanned ports indefinitely within memory for each ip so that port scans
+do not expire over time.
+
+The default is N since most scans are easily recognizable within a short time interval
+which is configured in the next question box if you leave this value as N."
+QUESTION: "Enable scan persistence?"
+REQUIRE_DISTRO:  LINUX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: N
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_show_all_signatures
+NO_CHILD: psad_scan_timeout
+SKIP_CHILD: psad_scan_timeout
+PROPER_PARENT: psad_port_range_scan_threshold
+
+LABEL: psad_scan_timeout
+SHORT_EXP: "This will allow you to define the length of time psad considers data about
+a port scan or potential port scan to be important. If this length of time passes after
+an initial port scan is detected, the ip from which the scan originated is purged from
+psad's memory space along with the scan data.
+
+The default is 3600 seconds (one hour)."
+QUESTION: "Scan timeout: [3600]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: 3600
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_show_all_signatures
+NO_CHILD: psad_show_all_signatures
+PROPER_PARENT: psad_enable_persistence
+
+LABEL: psad_show_all_signatures
+SHORT_EXP: "Psad makes use of many tcp and udp signatures included within the snort
+intrusion detection system to detect scans for various back doors and/or trojans (Back
+Orifice, SubSeven, etc.), DDoS tools (mstream, shaft) and advanced port scans (SYN,
+FIN, XMAS, NULL). Over the course of a scan psad keeps track of all signatures that
+have been matched and if this value is set to Y, all matched signatures will be
+printed with every alert email instead of just the most recently matched ones.
+
+The default is N since the email record will already contain just the most recently
+matched signatures."
+QUESTION: "Show all scan signatures?"
+REQUIRE_DISTRO: LINUX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: N
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_danger_levels
+NO_CHILD: psad_danger_levels
+PROPER_PARENT: psad_scan_timeout
+
+LABEL: psad_danger_levels
+SHORT_EXP: "As port scans are detected by psad they are assigned a danger level from
+1 to 5 based on the number of packets and whether they match a specific signature
+(iptables only).
+
+The default number of packets for each danger level are as follows:
+Danger Level 1 = 5 packets
+Danger Level 2 = 50 packets
+Danger Level 3 = 1000 packets
+Danger Level 4 = 5000 packets
+Danger Level 5 = 10000 packets"
+QUESTION: "Danger Levels: [5 50 1000 5000 10000]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: 5 50 1000 5000 10000
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_email_alert_addresses
+NO_CHILD: psad_email_alert_addresses
+PROPER_PARENT: psad_show_all_signatures
+
+LABEL: psad_email_alert_addresses
+SHORT_EXP: "Psad supports sending email alerts to multiple email addresses. You can
+specify as many email addresses as you like; just enter them one right after another
+without any commas.
+
+The default email address is root@localhost."
+QUESTION: "Email addresses: [root@localhost]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: root@localhost
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_email_alert_danger_level
+NO_CHILD: psad_email_alert_danger_level
+PROPER_PARENT: psad_danger_levels
+
+LABEL: psad_email_alert_danger_level
+SHORT_EXP: "Psad can be configured to send an email alert for a scan only after the
+scan has reached a certain danger level. For example, if you don't want psad to alert
+you about a scan until it has reached the highest danger level (5), then you would set
+this value to 5.
+
+The default danger level is 1."
+QUESTION: "Email alert danger level: [1]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: 1
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_alert_all
+NO_CHILD: psad_alert_all
+PROPER_PARENT: psad_email_alert_addresses
+
+LABEL: psad_alert_all
+SHORT_EXP: "Throughout the course of a scan, new packets may be sent to your machine
+that don't trip the next danger threshold and hence psad will not alert you unless
+the value is set to Y.
+
+The default is Y since once a scan reaches the threshold assigned in the previous
+section you will probably want as much information on it as psad can produce."
+QUESTION: "Alert on all new packets?"
+REQUIRE_DISTRO: LINUX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: Y
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_enable_auto_ids
+NO_CHILD: psad_enable_auto_ids
+PROPER_PARENT: psad_email_alert_danger_level
+
+LABEL: psad_enable_auto_ids
+SHORT_EXP: "Psad has the capability of automatically blocking any IP address that
+has scanned your machine if the scan trips a certain threshold. WARNING: This feature
+has the potential to create the ability for anyone to commit a Denial of Service
+against your machine/network and cause psad to block all access to any website of the
+attacker's choosing. For example, suppose that an attacker wants to make psad block
+access to www.yahoo.com. Then all the attacker would need to do is spoof a port scan
+from www.yahoo.com's IP address(es) and make sure the scan is comprehensive enough to
+trip the automatic blocking threshold.
+
+The default is N for the reason given above, but if the requirements for your site
+outweigh this possibility then answering Y will enable the automatic blocking
+feature and the next section will ask you to define a corresponding danger
+threshold."
+QUESTION: "Enable automatic blocking of scanning IPs?"
+REQUIRE_DISTRO: LINUX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: N
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_auto_ids_danger_level
+NO_CHILD: psad_enable_at_boot
+SKIP_CHILD: psad_enable_at_boot
+PROPER_PARENT: psad_alert_all
+
+LABEL: psad_auto_ids_danger_level
+SHORT_EXP: "This controls at what danger level a scan must reach before it is
+automatically blocked by psad. Normally this value should be set to a relatively high
+value so that only IP addresses that leverage really comprehensive scans will be
+blocked.
+
+The default danger level is 5."
+QUESTION: "Auto blocking danger level: [5]"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: 5
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: psad_enable_at_boot
+NO_CHILD: psad_enable_at_boot
+PROPER_PARENT: psad_enable_auto_ids
+
+LABEL: psad_enable_at_boot
+SHORT_EXP: "The Port Scan Attack Detector is controlled by a standard Sys V style
+init script, /etc/rc.d/init.d/psad.  To start the psad daemons, simply execute
+        /etc/rc.d/init.d/psad start
+and to stop psad, execute
+        /etc/rc.d/init.d/psad stop
+
+Bastille can configure your system to start psad at boot time by executing
+        chkconfig psad on."
+QUESTION: "Should Bastille enable psad at boot time? [N]"
+REQUIRE_DISTRO: LINUX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+DEFAULT_ANSWER: N
+YES_CHILD: End_Screen
+NO_CHILD: End_Screen
+PROPER_PARENT: psad_enable_auto_ids
+
+

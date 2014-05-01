@@ -1,0 +1,122 @@
+$Id: fwnotes.txt,v 1.1 2002/02/25 13:00:55 peterw Exp $
+bastille-firewall design
+
+Design Goals
+
+bastille-firewall was designed primarily to
+ - protect typical servers and workstations
+ - work well with dialup and DHCP/broadband networks
+ - protect machines that serve as gateways/firewalls for proxy or NAT setups
+ - separate policy from implementation for portability and accommodating
+   future packet filtering tools
+ - help curious users better understand firewall construction
+ - be easily extensible
+
+Topology
+
+bastille-firewall is designed primarily for three different topologies:
+ - standalone server/workstation, with only one network connection
+ - IP masquerading/internet connection sharing system with one public/internet
+   connection and one or more "internal" networks that seamlessly access
+   the public network through the IP masquerading (NAT) system
+ - firewall.proxy server with at least two network connections, but 
+   without any routing between networks
+With some custom scripts, bastille-firewall can be extended to support
+other configurations, e.g. routing between networks, using DNAT to forward
+requests to a DMZ network, etc.
+
+Building rules
+
+Some Linux firewall/packet filter tools do little more than save a set of
+static rules. bastille-firewall does not simply save rules, It builds
+rules in a deliberate order, implementing the specified policy in a manner
+appropriate for the current network configuration. For Linux systems, this
+is done by /sbin/bastille-ipchains or /sbin/bastille-netfilter, depending
+on the kernel version and the installed packet filtering tools. Most
+admins need not bother themselves with this detail: the short
+init.d/bastille-firewall SysV init script will call the appropriate rule-
+building script. But an effort has been made to comment both the
+configuration file, /etc/Bastille/bastille-firewall.cfg, and the
+bastille-ipchains and bastille-netfilter scripts. While 'bastille-firewall
+status" will show the current rulesets, individuals who are curious about
+the firewall rules should look at the scripts in /sbin that create the
+rules.
+
+Rebuilding rules
+
+Building packet filter rules is easy for servers whose network
+configurations (IP address, routes, nameservers, etc.) do not change. It's
+not so easy for users with dialup, broadband, and DHCP connections which
+can change without any notice. This is particularly true when using the
+"ipchains" packet filtering tools from the Linux 2.2 kernels (the 2.4
+kernels also support ipchains for users who might want to continue using
+ipchains; bastille-firewall will always try to use the newer tools if
+you're using a 2.4 or newer kernel, though). Particularly on Mandrake and
+Red Hat systems, bastille-firewall takes measures to ensure that the
+packet filter ruleset is rebuilt whenever the network configuration
+changes. It uses /sbin/ifup-local to rebuild the rules when interfaces are
+raised. It sets up links to hook into dhcpcd lease renewals. It even makes
+an effort to force DHCP lease renewal on "pump" systems so you can be sure
+the rules react to any network changes.
+
+Rulesets are rebuilt very carefully, with an eye towards ensuring no
+traffic can get through inappropriately even in the few seconds it takes
+to rebuild a full ruleset. Temporary drop/deny/ignore rules are put in
+place so that existing connections will not be affected in the vast
+majority of cases. For instance, it is generally safe for an admin to log
+in remotely, as with OpenSSH, edit the policy, and rebuild the rules
+without worrying that her SSH session would be closed.
+
+Extending the packet filter with custom code
+
+Beginning with Bastille 1.3.0, the bastille-firewall system has special
+hooks designed to make it easier to extend and customize the firewall
+behavior, without editing core scripts. At a number of different points
+when building the ruleset, the bastille-ipchains and bastille-netfilter
+scripts look to see if any custom "supplemental" scripts have bee
+installed. Installing supplemental scripts is done in much the same way
+that one installs a custom startup script in /etc/profile.d. The
+bastille-firewall scripts look for supplemental scripts in
+/etc/Bastille/firewall.d (a directory which is not created by the Bastille
+installation/back end process). Each "hook" that bastille-firewall
+supports has a nickname, for instance before the start/restart/reload
+option begins to do any work, bastille-ipchains and bastille-netfilter
+each have this line:
+  include_supplemental pre-reset
+This tells the script to look
+ - for "/etc/Bastille/firewall.d/pre-reset.sh"
+ - for anything ending in ".sh" inside "/etc/Bastille/firewall.d/pre-reset.d"
+Any such scripts are *sourced* (*not* run). Sourcing the script means
+ - it MUST be a Bourne script (or BASH on most Linux systems)
+ - it MUST NOT "exit" (or the rulebuilding process will stop!)
+ - the script will have access to the calling script's environment so
+   - it can see the current configuration settings
+   - it can change these settings
+ - it can tell whether the system is using iptables/netfilter or ipchains
+For instance, if you were writing a port scan attack detection system that
+needed the iptables rules to log all failures, you could write a simple
+"/etc/Bastille/firewall.d/pre-reset.d/logfailures.sh" that simply set the
+LOG_FAILURES environment variable to "Y". Subsequent bastille-firewall
+logic would then know to set logging rules for your system.
+
+A sample supplemental script is included in the Bastille 1.3 documentation
+folder. Called "portforward.sh", it is designed to make it relatively easy
+to support a virtual DMZ, forwarding requests from the public network to a
+different server. 
+Note that the script
+ - does not "exit"
+ - uses existing variables to determine if the system is using ipchains
+   or iptables
+ - has error checking in several places
+While the sample script has not been tested under an ipchains-based
+system, it is hoped that it will help demonstrate how to build a
+supplemental script for bastille-firewall. Of course we welcome any
+supplemental script contributions you may want to send us. :-)
+
+Credits
+
+Special thanks go to Jay for encouragement, Sweth for enlightenment, Mike
+for helping design the supplemental system, Kishan for help on the sample
+script, Javi, Brad, and Fede for Debian stuff, and Harlan Michael.
+
+-Peter Watkins, February 2002

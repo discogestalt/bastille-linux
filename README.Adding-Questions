@@ -1,0 +1,12 @@
+Each item, generally thought of as a "question," is described primarily in two
+files.  The first is the module to which it belongs, generally named 
+<module>.pm, which contains the program code that makes whatever change the
+question describes.  The second is that module's corresponding <Module>.txt
+file, which contains the questions, background explanations and metadata
+describing how the items are navigated and interdepend.
+
+(Previous to version <JJB: VERSION>, Bastille kept all of the latter information
+for every module in a central Questions.txt.)
+
+JJB: Add more.
+

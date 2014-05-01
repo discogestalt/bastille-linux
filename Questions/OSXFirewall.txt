@@ -1,0 +1,102 @@
+FILE: OSXFirewall.pm
+
+LABEL: fixosxfirewall
+SHORT_EXP: "The OSX firewall is weaker than it should be.
+
+Among other things, it doesn't block connections to UDP ports by default, like
+those used by the printing daemon or network time sync client.  Even when you
+use the UDP blocking in Tiger's Advanced tab, the firewall still has critical
+issues.  For example, the firewall allows an attacker to communicate with
+otherwise forbidden ports simply by setting the source port to 67 or 5353.
+"
+QUESTION: Would you like to update the OS X firewall with Bastille's suggestions?
+REQUIRE_DISTRO: OSX
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: osxfirewallbonjour
+NO_CHILD: osxfirewallbonjour
+PROPER_PARENT: tmpdir
+
+LABEL: osxfirewallbonjour
+SHORT_EXP: "Apple's firewall allows any computer to access the Bonjour
+ports, 5353 (multicast DNS) and 427 (svrloc).  This service makes configuring
+printers easier, but it also shares substantial information about your
+computer with any host that can reach these ports, including your 
+patch level.  An attacker can use this information to better target
+your computer.  This should almost certainly be deactivated when your
+computer is not on your personal or office network.
+"
+QUESTION: Do you want to deny access to the Bonjour/Zeroconf ports?
+REQUIRE_DISTRO: OSX
+YN_TOGGLE: 1
+DEFAULT_ANSWER: N
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: osxfirewalltcp
+NO_CHILD: osxfirewalltcp
+PROPER_PARENT: fixosxfirewall
+
+LABEL: osxfirewalltcp
+SHORT_EXP: "Bastille's replacement firewall for OS X has a default-deny
+policy.  You must name the ports you'd like left accessible by other 
+computers.  These are generally servers you are running FROM your 
+machine.  Most laptops and personal workstations offer no TCP 
+services.
+
+Here are some examples of services you might be offering:
+
+TCP 139	- Windows filesharing
+TCP 80  - HTTP Web server
+TCP 443 - HTTPS Web server
+TCP 22  - SSH Remote Login
+TCP 3283 - Apple Remote Control/VNC
+TCP 5900 - Apple Remote Control/VNC
+
+Please separate the port list with spaces.
+"
+QUESTION: What TCP ports would you like to allow other computers to access?
+REQUIRE_DISTRO: OSX
+YN_TOGGLE: 0
+DEFAULT_ANSWER: 
+REG_EXP: "^[\d\s]*$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: osxfirewalludp
+NO_CHILD: osxfirewalludp
+PROPER_PARENT: osxfirewallbonjour
+
+LABEL: osxfirewalludp
+SHORT_EXP: "Bastille's replacement firewall for OS X has a default-deny
+policy.  You must name the ports you'd like left accessible by other 
+computers.  These are generally servers you are running FROM your 
+machine.  Most laptops and personal workstations offer no UDP
+services outside of Windows filesharing.
+
+Here are some examples of services you might be offering:
+
+UDP 137 - Windows filesharing
+UDP 138 - Windows filesharing
+UDP 631 - CUPS Printer sharing
+UDP 3283 - Apple Remote Control/VNC
+UDP 5900 - Apple Remote Control/VNC
+
+NOTE: You will need to open access to UDP 137 to use other computers'
+      Windows fileshares.
+
+Please separate the port list with spaces.
+"
+QUESTION: What UDP ports would you like to allow other computers to access?
+REQUIRE_DISTRO: OSX
+YN_TOGGLE: 0
+DEFAULT_ANSWER: 137
+REG_EXP: "^[\d\s]*$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_intro
+NO_CHILD: ip_intro
+PROPER_PARENT: osxfirewalltcp
+

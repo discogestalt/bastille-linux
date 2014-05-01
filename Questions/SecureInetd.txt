@@ -1,0 +1,502 @@
+FILE: SecureInetd.pm
+
+LABEL: tcpd_default_deny
+SHORT_EXP: "Not recommended for most users:
+
+If you would like, Bastille can configure a default policy for all inetd,
+xinetd, and TCP Wrappers-aware services to deny all connection attempts.
+While you might have already chosen to install Bastille's firewall, setting
+a default deny policy for these services gives more defense in depth.
+
+This will also configure xinetd so that the currently-installed xinetd
+services will use xinetd's more flexible access control and *not*
+/etc/hosts.allow.  All other wrappers-based programs, like sshd, will
+obey the default-deny.
+
+As a special exception, Bastille currently allows sshd on a default-allow
+basis.  If you wish this blocked as well, please change its line manually
+in hosts.allow."
+LONG_EXP: "Not recommended for most users:
+
+Many network services can be configured to restrict access
+to certain network addresses (and in the case of 'xinetd' services in
+Linux-Mandrake 8.0 and Red Hat 7.x, other criteria as well). For services
+running under the older 'inetd' super-server (found in older versions of
+Linux-Mandrake and Red Hat, and current versions of some other distributions),
+some standalone services like OpenSSH, and --unless otherwise configured--
+services running under Red Hat's xinetd super-server, you can configure
+restrictions based on network address in /etc/hosts.allow. The services
+using inetd or xinetd typically include telnet, ftp, pop, imap, finger,
+and a number of other services.
+
+If you would like, Bastille can configure a default policy for all inetd,
+xinetd, and TCP Wrappers-aware services to deny all connection attempts.
+While you might have already chosen to install Bastille's firewall, setting
+a default deny policy for these services gives more defense in depth.
+
+This will also configure xinetd so that the currently-installed xinetd
+services will use xinetd's more flexible access control and *not*
+/etc/hosts.allow.  All other wrappers-based programs, like sshd, will
+obey the default-deny.
+
+As a special exception, Bastille currently allows sshd on a default-allow
+basis.  If you wish this blocked as well, please change its line manually
+in hosts.allow."
+QUESTION: "Would you like to set a default-deny on TCP Wrappers and xinetd? [N]"
+QUESTION_AUDIT: "Is a default-deny on TCP Wrappers and xinetd set?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: deactivate_telnet
+NO_CHILD: deactivate_telnet
+PROPER_PARENT: disable_autologin
+
+LABEL: deactivate_telnet
+SHORT_EXP: "Telnet is not secure.
+
+Telnet is shipped on most operating systems for backward compatibility,
+and it should not be used in an untrusted network.
+
+Telnet is a clear-text protocol, meaning that any data transferred,
+including passwords, can be monitored by anyone else on your network (even if you
+use a switching router, as switches were designed for performance, not
+security and can be made to broadcast).  Other networks can monitor this information too if the
+telnet session crosses multiple LANs.
+
+There are also other more active attacks.  For example, anyone who can
+eavesdrop can usually take over your telnet session, using a tool like
+Hunt or Ettercap.
+
+The standard practice among security-conscious sites is to migrate as rapidly
+as practical from telnet to Secure Shell (command: ssh).  We'd advise you to make this
+move as soon as possible.  Secure shell implementations are available from
+openssh.org and ssh.com.  Most Operating System vendors also distribute a
+version of secure shell,
+so check with your vendor first to see if there is a version that has been
+tested with your OS.
+
+NOTE: Deactivating the telnetd service will not affect your telnet client."
+QUESTION: "Should Bastille ensure the telnet service does not run on this system? [y]"
+QUESTION_AUDIT: "Is the telnet service disabled on this system?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: deactivate_ftp
+NO_CHILD: deactivate_ftp
+PROPER_PARENT: tcpd_default_deny
+
+
+LABEL: deactivate_ftp
+SHORT_EXP: "Ftp is another legacy protocol.  First, it is a clear-text
+protocol, like telnet -- this allows an attacker to eavesdrop on sessions and
+steal passwords. This also allows an attacker to take over an FTP session,
+using a clear-text-takeover tool like Hunt or Ettercap.  Second, it can make
+effective firewalling difficult due to the way FTP requires many ports to
+stay open.  Third, every major FTP daemon has had a
+long history of security vulnerability -- they represent one of the major
+successful attack vectors for remote root attacks.
+
+FTP can be replaced by Secure Shell's scp and sftp programs.
+
+NOTE: Answering \"yes\" to this question will also prevent the use of this
+machine as an anonymous ftp server."
+QUESTION: "Should Bastille ensure inetd's FTP service does not run on this system? [y]"
+QUESTION_AUDIT: "Is inetd's FTP service disabled on this system?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: deactivate_rtools
+NO_CHILD: deactivate_rtools
+PROPER_PARENT: deactivate_telnet
+
+LABEL: deactivate_rtools
+SHORT_EXP: "The login, shell, and exec services make use of r-tools: rlogind,
+remshd, and rexecd respectively, which use IP based
+authentication.  This form of authentication can be easily defeated via
+forging packets that suggest the connecting machine is a trusted host
+when in fact it may be an arbitrary machine on the network.  Administrators
+in the past have found these services useful but many are unaware of the
+security ramifications of leaving these services enabled. 
+
+We suggest disabling these services unless this machine's use
+model requires the services present.
+
+Remote ignition, backup, etc. using Ignite-UX requires the remshd services
+for remote execution of commands."
+QUESTION: "Should Bastille ensure that the login, shell, and exec services do not run on this system?"
+QUESTION_AUDIT: "Are the login, shell, and exec services disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: deactivate_tftp
+NO_CHILD: deactivate_tftp
+PROPER_PARENT: deactivate_ftp
+
+LABEL: deactivate_tftp
+SHORT_EXP: "TFTP is often used to download operating system images and
+configuration data to diskless hosts. The Trivial File Transfer Protocol
+(TFTP) is a UDP-based file-transfer program that provides hardly any security.
+If this machine is not a boot server for diskless host/appliances or an
+Ignite-UX server then TFTP should be disabled."
+QUESTION: "Should Bastille ensure inetd's TFTP service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's TFTP service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_bootp
+NO_CHILD: deactivate_bootp
+PROPER_PARENT: deactivate_rtools
+
+LABEL: deactivate_bootp
+SHORT_EXP: "The bootpd daemon implements three functions:
+a Dynamic Host Configuration Protocol (DHCP) server, an Internet Boot
+Protocol (BOOTP) server, and a DHCP/BOOTP relay agent.  If this system
+is not a BOOTP/DHCP server nor a DHCP/BOOTP relay agent then it is advisable
+to disable this service"
+QUESTION: "Should Bastille ensure inetd's bootp service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's bootp service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_finger
+NO_CHILD: deactivate_finger
+PROPER_PARENT: deactivate_tftp
+
+LABEL: deactivate_finger
+SHORT_EXP: "fingerd is the server for the RFC 742 Name/Finger protocol. 
+It provides a network interface to finger, which gives a status report of
+users currently logged in on the system or a detailed report about a specific
+user (see finger(1)).  We recommend disabling the service as fingerd provides local
+system user information to remote sources, this can be useful to someone attempting
+to break into your system."
+QUESTION: "Should Bastille ensure inetd's finger service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's finger service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_uucp
+NO_CHILD: deactivate_uucp
+PROPER_PARENT: deactivate_bootp
+
+LABEL: deactivate_uucp
+SHORT_EXP: "UUCP (Unix to Unix copy) copies files named by the source_files argument
+to the destination identified by the destination_file argument. UUCP uses clear text
+transport for authentication.  It is not commonly used.  Therefore we recommend disabling
+this service and using a more secure file transfer program such as scp."
+QUESTION: "Should Bastille ensure inetd's uucp service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's uucp service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_ntalk
+NO_CHILD: deactivate_ntalk
+PROPER_PARENT: deactivate_finger
+
+LABEL: deactivate_ntalk
+SHORT_EXP: "Ntalk is a visual communication program that predates instant messaging
+applications, which copies lines from your terminal to that of another user.  Ntalk
+is commonly considered a light security hazard but if not used on this machine it
+should be disabled."
+QUESTION: "Should Bastille ensure inetd's ntalk service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's ntalk service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_ident
+NO_CHILD: deactivate_ident
+PROPER_PARENT: deactivate_uucp
+
+LABEL: deactivate_ident
+SHORT_EXP: "The ident service implements the TCP/IP proposed standard IDENT
+user identification protocol as specified in the RFC 1413 document.  identd
+operates by looking up specific TCP/IP connections and returning the user
+name of the process owning the connection.  This service could be used to
+determine user information on a given machine in preparation for a
+brute-force password attack like a dictionary attack.  We recommend
+disabling this service unless compelled by application specific needs"
+QUESTION: "Should Bastille ensure inetd's ident service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's ident service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_builtin
+NO_CHILD: deactivate_builtin
+PROPER_PARENT: deactivate_ntalk
+
+LABEL: deactivate_builtin
+SHORT_EXP: "The inetd's built-in services include chargen, daytime, discard,
+and echo.  These services are rarely used and when they are it is generally
+for testing.  The UDP versions of these services can be used in a Denial of
+Service attack and therefore we recommend disabling these services.  A brief
+definition of each service is as follows:
+
+daytime: Sends the current date and time as a human readable character string
+(RFC 867)
+
+discard:  Throws away anything that is sent to it, similar to
+/dev/null.(RFC 863)
+
+chargen:  Character Generator sends you a stream of some
+undefined data, preferably data in some recognizable pattern (RFC 862)
+
+echo:  Simply returns the packets sent to it. (RFC 862)"
+QUESTION: "Should Bastille ensure that inetd's built-in services do not run on this system?"
+QUESTION_AUDIT: "Are inetd's built-in services disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_time
+NO_CHILD: deactivate_time
+PROPER_PARENT: deactivate_ident
+
+LABEL: deactivate_time
+SHORT_EXP: "The time service that is built into inetd produces machine-readable time, in
+seconds since midnight on 1 January 1900 (RFC 868).  It is used for clock synchronization,
+but it lacks the ability to be configured securely.  It is recommended that the time
+service be disabled and for this machine to use the Network Time Protocol to synchronize
+its clocks as XNTP can be configured securely, see xntpd(1m)."
+QUESTION: "Should Bastille ensure that inetd's time service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's time service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_ktools
+NO_CHILD: deactivate_ktools
+PROPER_PARENT: deactivate_builtin
+
+LABEL: deactivate_ktools
+SHORT_EXP: "The kshell and klogin services use Kerberos authentication protocols.  If
+this machine is not using the Kerberos scheme then it is suggested that these services
+be disabled.  Using the principle of minimalism in a security lockdowns, any service or
+daemon running on the system that is not needed or used should be disabled."
+QUESTION: "Should Bastille ensure that the inetd's klogin and kshell services do not run on this system?"
+QUESTION_AUDIT: "Are inetd's klogin and kshell services disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_dttools
+NO_CHILD: deactivate_dttools
+PROPER_PARENT: deactivate_time
+
+LABEL: deactivate_dttools
+SHORT_EXP: "The dtspcd, ttdbserver, and cmsd services are used by CDE.  Each service
+has relative merits but they are all rarely used and for the most part deprecated.
+Definitions for each service are as follows:
+
+dtspcd: 
+Desktop Subprocess Control service is used to invoke a processes on other
+systems.  It uses an IP based authentication that is relatively easy to beat.
+
+cmsd: 
+This is used to run Sun's Calendar Manager software database over the network.
+If you don't use Sun's Calendar Manager software you will not be affected by
+disabling this service. Sun's Calendar Manager will not work properly with
+cmsd disabled.
+
+ttdbserver: 
+Sun's ToolTalk Database Server allows OpenWindows programs to intercommunicate. 
+Disabling this service may affect some of the advanced mail features of dtmail. 
+For instance, you will be unable to use the network aware mail locking feature
+of dtmail.  Some third party applications may use this service as well."
+QUESTION: "Should Bastille ensure that inetd's CDE helper services do not run on this system?"
+QUESTION_AUDIT: "Are inetd's CDE helper services disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_recserv
+NO_CHILD: deactivate_recserv
+PROPER_PARENT: deactivate_ktools
+
+LABEL: deactivate_recserv
+SHORT_EXP: "HP SharedX Receiver Service is used to receive shared windows from
+another machine in X without explicitly performing any xhost command.  This service
+is required for MPower remote windows, if you use MPower leave this service running
+on your system.  The SharedX Receiver Service is an automated wrapper around the xhost command, see
+xhost(1).  This service should be disabled unless the viewing of shared windows is
+something that is often done on this machine.  xhost is generally the more secure
+solution as it makes all sharing of windows explicit."
+QUESTION: "Should Bastille ensure that inetd's recserv service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's recserv service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_swat
+NO_CHILD: deactivate_swat
+PROPER_PARENT: deactivate_dttools
+
+LABEL: deactivate_swat
+SHORT_EXP: "The swat service allows a Samba administrator to configure Samba via
+a Web browser.  Also, swat allows administrators to view, change, and affect the
+change all via the Web.  The drawback from a security standpoint comes from the
+authentication method used for the Samba administrator.  That is, clear-text
+passwords are passed through the network if a connection is initiated from an
+outside source.  This form of authentication is easily defeated and therefore, it is
+recommended that this machine not run the swat service."
+QUESTION: "Should Bastille ensure that inetd's swat service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's swat service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_printer
+NO_CHILD: deactivate_printer
+PROPER_PARENT: deactivate_recserv
+
+LABEL: deactivate_printer
+SHORT_EXP: "The printer service is a line printer daemon that accepts remote
+spool requests.  It uses the rlpdaemon to process remote print requests as well
+as displaying the queue and removing jobs from the queue upon request.  If this
+machine is not used as a remote print spooler then this service should be
+disabled."
+QUESTION: "Should Bastille ensure that inetd's printer service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's printer service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: deactivate_rquotad
+NO_CHILD: deactivate_rquotad
+PROPER_PARENT: deactivate_swat
+
+LABEL: deactivate_rquotad
+SHORT_EXP: "rquotad"
+QUESTION: "Should Bastille ensure that inetd's rquotad service does not run on this system?"
+QUESTION_AUDIT: "Is inetd's rquotad service disabled on this system?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: banners
+NO_CHILD: banners
+PROPER_PARENT: deactivate_printer
+
+LABEL: banners
+SHORT_EXP: "At this point you can create \"Authorized Use Only\" messages for
+your site. These may be very helpful in prosecuting system crackers you
+may catch trying to break into your system.  Bastille can make default
+messages which you may then later edit.  This is sort of like an
+\"anti-welcome mat\" for your computer."
+QUESTION: "Would you like to display \"Authorized Use\" messages at log-in time? [Y]"
+QUESTION_AUDIT: "Are \"Authorized Use\" messages displayed at log-in time?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP: "A default login/telnet/ftp \"Authorized Use Only\" banner will be
+created, and will be found in /etc/issue.  You should modify this banner to
+apply more specifically to your organization (for instance, adding any
+site-specific information to the default warnings).  If this is a corporate site,
+check with your corporate counsel to determine the most appropriate
+warning for the banner.  These banners, according to CIAC's bulletin
+
+   (http://ciac.llnl.gov/ciac/bulletins/j-043.shtml)
+
+may make it much easier to prosecute intruders.  By including this default
+banner, neither the Bastille development team nor Hewlett-Packard Company
+take any responsibility for your ability to prosecute system crackers.
+Please, especially if you run a corporate site, review/replace this with
+more specific language."
+NO_EXP:
+YES_CHILD: owner
+NO_CHILD: log_inetd
+SKIP_CHILD: log_inetd
+PROPER_PARENT: deactivate_rquotad
+
+LABEL: owner
+SHORT_EXP: "Bastille will start to make the banner more specific by
+telling the user who is responsible for this machine.  This will state
+explicitly from whom the user needs to obtain authorization to use this
+machine.  Please type in the name of the company, person, or other
+organization who owns or is responsible for this machine."
+QUESTION: "Who is responsible for granting authorization to use this machine?"
+QUESTION_AUDIT: "Who is the system owner in the \"Authorized Use\" message?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB OSX
+DEFAULT_ANSWER: "its owner"
+YN_TOGGLE: 0
+YES_CHILD: log_inetd
+NO_CHILD: log_inetd
+SKIP_CHILD: log_inetd
+PROPER_PARENT: banners
+
+LABEL: log_inetd
+SHORT_EXP: "It is a good idea to log connection attempts to inetd services.
+The only reason not to do this is the frequency of logging from inetd will
+fill logs more quickly, particularly if inetd services are heavily used on
+this machine."
+QUESTION: "Should Bastille enable logging for all inetd connections?"
+QUESTION_AUDIT: "Is logging for all inetd connections enabled?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: ftp_logging
+NO_CHILD: ftp_logging
+SKIP_CHILD: ftp_logging
+PROPER_PARENT: banners
+
+LABEL: ftp_logging
+SHORT_EXP: "It is a good idea to log FTP connection and command activity.
+The only reason not to do this is the frequency of logging from FTP will
+fill logs more quickly, particularly if FTP services are heavily used on
+this machine."
+QUESTION: "Should Bastille enable logging for FTP connections?"
+QUESTION_AUDIT: "Is logging for FTP connections enabled?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: inetd_general
+NO_CHILD: inetd_general
+SKIP_CHILD: inetd_general
+PROPER_PARENT: log_inetd
+
+LABEL: inetd_general
+SHORT_EXP: "In addition to the previously mentioned services, one should
+also disable other unneeded inetd services.  The aim is to only leave
+those services running that are critical to the operation of
+this machine.  This is an example of the frequent tradeoff
+between security and functionality.  The most secure
+machine is usually not very useful.  For the most secure, but useful
+system, you will need to enable only those services which this system
+needs to fulfill its intended purpose.
+
+You can further restrict access using the inetd.sec file or a program
+like tcpwrappers.  If you answer \"Y\" to this question, Bastille will
+also point you to information on how to configure these tools.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Should Bastille tell you to disable unneeded inetd services in the TODO list?"
+QUESTION_AUDIT: "Are inetd service disable instructions available in the TODO list?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: compiler
+NO_CHILD: compiler
+SKIP_CHILD: compiler
+PROPER_PARENT: ftp_logging
+

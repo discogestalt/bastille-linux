@@ -1,0 +1,148 @@
+# Q: Would you like to run the packet filtering script? [N]
+IPChains.ip_intro="Y"
+# Q: 
+IPChains.ip_detail_level_kludge="Y"
+# Q: Do you need the advanced networking options?
+IPChains.ip_advnetwork="N"
+# Q: DNS Servers: [0.0.0.0/0]
+IPChains.ip_b_dns="0.0.0.0/0"
+# Q: 
+IPChains.ip_b_trustiface="lo"
+# Q: Public interfaces: [eth+ ppp+ slip+]
+IPChains.ip_b_publiciface="eth+ ppp+ slip+"
+# Q: TCP services to audit: [telnet ftp imap pop3 finger sunrpc exec login ssh]
+IPChains.ip_b_tcpaudit="telnet ftp imap pop3 finger sunrpc exec login ssh"
+# Q: UDP services to audit: [31337]
+IPChains.ip_b_udpaudit="31337"
+# Q: TCP service names or port numbers to allow on public interfaces: [ ]
+IPChains.ip_b_publictcp="ssh"         MODIFY -- add each server protocol ( 80+443 for web,  25+imap+pop for mail)
+# Q: Force passive mode? [N]
+IPChains.ip_b_passiveftp="N"
+# Q: TCP services to block: [2049 2065:2090 6000:6020 7100]
+IPChains.ip_b_tcpblock="2049 2065:2090 7100"
+# Q: UDP services to block: [2049 6770]
+IPChains.ip_b_udpblock="2049 6770"
+# Q: ICMP allowed types: [destination-unreachable echo-reply time-exceeded]
+IPChains.ip_b_icmpallowed="destination-unreachable echo-reply time-exceeded echo-request"
+# Q: Enable source address verification? [Y]
+IPChains.ip_b_srcaddr="Y"
+# Q: Reject method: [DENY]
+IPChains.ip_b_rejectmethod="REJECT"
+# Q: Interfaces for DHCP queries: [ ]
+IPChains.ip_b_dhcpiface="eth+ ppp+"
+# Q: NTP servers to query: [ ]
+IPChains.ip_b_ntpsrv="eth+ ppp+"
+# Q: Would you like to set more restrictive permissions on the administration utilities? [N]
+FilePermissions.generalperms="N"
+# Q: Would you like to disable SUID status for mount/umount?
+FilePermissions.suidmount="N"
+# Q: Would you like to disable SUID status for ping? [Y]
+FilePermissions.suidping="N"
+# Q: Would you like to disable SUID status for dump and restore? [Y]
+FilePermissions.suiddump="Y"
+# Q: Would you like to disable SUID status for cardctl? [Y]
+FilePermissions.suidcard="Y"
+# Q: Would you like to disable SUID status for at? [Y]
+FilePermissions.suidat="N"
+# Q: Would you like to disable SUID status for DOSEMU? [Y]
+FilePermissions.suiddos="Y"
+# Q: Would you like to disable SUID status for news server tools? [Y]
+FilePermissions.suidnews="Y"
+# Q: Would you like to disable SUID status for printing utilities? [N]
+FilePermissions.suidprint="N"
+# Q: Would you like to disable SUID status for the r-tools? [Y]
+FilePermissions.suidrtool="Y"
+# Q: Would you like to disable SUID status for usernetctl? [Y]
+FilePermissions.suidusernetctl="N"
+# Q: Would you like to disable SUID status for traceroute? [Y]
+FilePermissions.suidtrace="N"
+# Q: Would you like to set up a second UID 0 account? [N]
+AccountSecurity.secondadmin="N"
+# Q: May we take strong steps to disallow the dangerous r-protocols? [Y]
+AccountSecurity.protectrhost="Y"
+# Q: Would you like to enforce password aging? [Y]
+AccountSecurity.passwdage="Y"
+# Q: Would you like to create a non-root user account? [N]
+AccountSecurity.createuser="N"
+# Q: Would you like to restrict the use of cron to administrative accounts? [Y]
+AccountSecurity.cronuser="N"
+# Q: Would you like to password-protect the LILO prompt? [N]
+BootSecurity.protectlilo="N"
+# Q: Would you like to reduce the LILO delay time to zero? [N]
+BootSecurity.lilodelay="N"
+# Q: Do you ever boot Linux from the hard drive? [Y]
+BootSecurity.lilosub_drive="N"
+# Q: Would you like to write the LILO changes to a boot floppy? [N]
+BootSecurity.lilosub_floppy="N"
+# Q: Would you like to disable CTRL-ALT-DELETE rebooting? [N]
+BootSecurity.secureinittab="N"
+# Q: Would you like to password protect single-user mode? [Y]
+BootSecurity.passsum="Y"
+# Q: Would you like to modify inetd.conf and /etc/hosts.allow to optimize use of Wrappers? [Y]
+SecureInetd.modifyinetd="N"
+# Q: Would you like to make "Authorized Use" banners? [Y]
+SecureInetd.banners="Y"
+# Q: Would you like to disable the compiler? [N]
+DisableUserTools.compiler="N"
+# Q: Would you like to put limits on system resource usage? [Y]
+ConfigureMiscPAM.limitsconf="N"
+# Q: Should we restrict console access to a small group of user accounts? [N]
+ConfigureMiscPAM.consolelogin="N"
+# Q: Would you like to add additional logging? [Y]
+Logging.morelogging="Y"
+# Q: Do you have a remote logging host? [N]
+Logging.remotelog="N"
+# Q: Would you like to set up process accounting? [N]
+Logging.pacct="N"
+# Q: Would you like to disable apmd? [Y]
+MiscellaneousDaemons.apmd="Y"
+# Q: Would you like to deactivate NFS and Samba? [Y]
+MiscellaneousDaemons.remotefs="Y"
+# Q: Would you like to disable PCMCIA services? [Y]
+MiscellaneousDaemons.pcmcia="Y"
+# Q: Would you like to disable the DHCP daemon? [Y]   MODIFY -- change this to N if they've selected DHCP from server list
+MiscellaneousDaemons.dhcpd="Y"
+# Q: Would you like to disable GPM? [Y]
+MiscellaneousDaemons.gpm="Y"
+# Q: Would you like to disable the news server daemon? [Y]
+MiscellaneousDaemons.innd="Y"
+# Q: Would you like to deactivate the routing daemons? [Y]
+MiscellaneousDaemons.routing="Y"
+# Q: Would you like to deactivate NIS server and client programs? [Y]
+MiscellaneousDaemons.nis="Y"
+# Q: Would you like to disable SNMPD? [Y]
+MiscellaneousDaemons.snmpd="Y"
+# Q: Do you want to leave sendmail running in daemon mode? [Y]  MODIFY -- change this to Y if they've selected MAIL from server list
+Sendmail.sendmaildaemon="N"
+# Q: Would you like to run sendmail via cron to process the queue? [N]  MODIFY -- change this to N if they've selected MAIL from server list
+Sendmail.sendmailcron="Y"
+# Q: Would you like to disable the VRFY and EXPN sendmail commands? [Y]
+Sendmail.vrfyexpn="Y"
+# Q: Would you like to download and install ssh? [N]
+RemoteAccess.installssh="N"
+# Q: Would you like to chroot named and set it to run as a non-root user? [N]
+DNS.chrootbind="N"
+# Q: Would you like to deactivate named, at least for now? [Y]  MODIFY -- change this to N if they've selected DNS from server list
+DNS.namedoff="Y"
+# Q: Would you like to deactivate the Apache web server? [Y]  MODIFY -- change this to Y if they've selected Apache form server list
+Apache.apacheoff="Y"
+# Q: Would you like to bind the web server to listen only to the localhost? [N]
+Apache.bindapachelocal="N"
+# Q: Would you like to bind the web server to a particular interface? [N]
+Apache.bindapachenic="N"
+# Q: Would you like to deactivate the following of symbolic links? [Y]
+Apache.symlink="N"
+# Q: Would you like to deactivate server-side includes? [Y]
+Apache.ssi="Y"
+# Q: Would you like to disable CGI scripts, at least for now? [Y]
+Apache.cgi="Y"
+# Q: Would you like to disable indexes? [N]
+Apache.apacheindex="N"
+# Q: Would you like to disable printing? [N]
+Printing.printing="N"
+# Q: Would you like to disable user privileges on the FTP daemon? [N]  MODIFY -- change this to N if they've selected FTP from server list
+FTP.userftp="Y"
+# Q: Would you like to disable anonymous download? [N]  MODIFY -- change this to N if they've selected FTP from server list
+FTP.anonftp="Y"
+# Q: Would you like to install TMPDIR/TMP scripts? [N]
+TMPDIR.tmpdir="N"

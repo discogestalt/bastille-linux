@@ -1,0 +1,12 @@
+--- smb.rhat    Tue May  8 00:25:59 2001
++++ smb Thu May 17 23:30:07 2001
+@@ -24,6 +24,9 @@
+
+ RETVAL=0
+
++# set TMPDIR to a world-writable directory if you like
++# (default is /tmp, and it is used safely)
++unset TMPDIR
+
+ start() {
+        echo -n "Starting SMB services: "

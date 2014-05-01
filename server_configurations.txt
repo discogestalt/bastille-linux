@@ -1,0 +1,89 @@
+The server configurations include three security levels.  They start
+the following major servers turned off: DNS, Mail, Web, FTP and DHCP.
+Then then modify those, based on which of the five major server types
+the user asks for.
+
+Server configuration in Lax security level:
+
+No firewalling
+Disable SUID status from dump/restore, cardctl, dosemu, news server programs
+Enforce password aging
+Password protect single user mode
+Add additional logging
+Disable apmd, NFS, Samba, pcmcia, DHCP server, news server, routing daemons,
+ NIS, SNMPD
+Disable VRFY/EXPN data mining commands into sendmail
+Deactivate named (dns)
+Deactivate apache (web)
+Deactivate apache Server Side Includes (SSI)
+Set umask to 022
+Set security level to 2
+Apply file permission level 2
+Deactivate telnet
+Deactivate ftp
+Activate security checks
+
+
+
+Server configuration in Moderate security level:
+
+Moderate firewalling
+Disable SUID status from dump/restore, cardctl, dosemu, news server programs
+Disable SUID status from rsh, rlogin
+Disable rhost-based authentication
+Enforce password aging
+Password protect single user mode
+Add additional logging
+Disable apmd, NFS, Samba, pcmcia, DHCP server, news server, routing daemons,
+ NIS, SNMPD
+Disable gpm
+Disable VRFY/EXPN data mining commands into sendmail
+Deactivate named (dns)
+Deactivate apache (web)
+Deactivate apache Server Side Includes (SSI)
+Deactivate apache CGI script execution
+Disable FTP user mode
+Disable FTP anonymous mode
+Set umask to 022
+Set security level to 3
+Apply file permission level 3
+Restrict "." from the PATH variable
+Deactivate telnet
+Deactivate ftp
+Activate security checks
+
+
+Server configuration in Paranoia security level:
+
+Strong firewalling
+Disable SUID status from dump/restore, cardctl, dosemu, news server programs
+Disable SUID status from rsh, rlogin
+Disable SUID status for mount, umount, ping, at, usernetctl, traceroute
+Disable rhost-based authentication
+Disable cron use to everyone but root
+Enforce password aging
+Enforce limits on resources to prevent DoS attack
+Password protect single user mode
+Add additional logging
+Disable apmd, NFS, Samba, pcmcia, DHCP server, news server, routing daemons,
+ NIS, SNMPD
+Disable gpm
+Disable VRFY/EXPN data mining commands into sendmail
+Deactivate named (dns)
+Deactivate apache (web)
+Deactivate apache Server Side Includes (SSI)
+Deactivate apache CGI script execution
+Deactivate apache's following of symlinks
+Disable printing
+Disable FTP user mode
+Disable FTP anonymous mode
+Activate TMPDIR protection
+Set umask to 077
+Set security level to 4
+Apply file permission level 4
+Restrict "." from the PATH variable
+Deactivate telnet
+Deactivate ftp
+Activate security checks
+
+

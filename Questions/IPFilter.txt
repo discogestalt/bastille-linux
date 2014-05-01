@@ -1,0 +1,378 @@
+FILE: IPFilter.pm
+
+LABEL: configure_ipfilter
+SHORT_EXP: "Firewalls generally make up the first line of defense in any
+network security architecture.  IPFilter is a free host-based firewall
+which is available for HP-UX.  It looks like you have IPFilter installed,
+but that does not necessarily mean that it has been configured (Bastille
+cannot detect whether or not the rule-set is appropriate for your unique needs).
+
+Bastille can create a very basic firewall configuration.
+
+WARNING: Firewalls are designed to keep people out of your machine.
+Therefore, this section has the ability to keep you out too.  Blocked
+communication can include traffic from management applications like Service
+Guard, System Insight Manager, OpenView, System Management Homepage, and others.
+To use any applications whose communication that is not explicitly allowed in
+one of the follow-up questions, please see that application's Firewall- or
+Bastille-interaction documentation for which ports to accept via the
+ipf.customrules file described below.  The HP-UX Networking Ports Reference
+Guide is also helpful.  The most problematic communication is either
+externally-initiated, UDP or RPC-based.  Please be very careful when
+answering these questions and verify that you can still login to your
+machine remotely (and have physical access just in case) before logging out.
+
+WARNING: IPFilter is only able to block traffic which is processed by
+the kernel.  Network cards exist which take the processing of this traffic
+out of the kernel for performance reasons.  This is referred to as TOE, or
+TCP offload engine.  If you are using such a card (can be used for iSCSI
+and 10Gb Ethernet), configuring an IPFilter-based firewall will have no
+effect for traffic processed by that card.  Also, local traffic is not processed.
+
+WARNING: This will OVERWRITE any existing firewall rules.  If you already
+have sufficiently secure firewall rules in place, then you should say \"No\"
+to this question.  Answering \"Yes\" to this question will create and apply
+firewall rules that will:
+
+(a) Block incoming traffic with ip options set.  These options are used
+frequently by attackers and infrequently for any other purpose.
+
+(b) Apply a custom rule-set from /etc/opt/sec_mgmt/bastille/ipf.customrules
+This file as delivered with Bastille will allow all outgoing connections
+and keep track of them so that traffic which corresponds to those connections
+will be allowed back in.  This basic configuration will allow most local
+applications to operate properly without allowing attackers in through
+ports you don't use.  The delivered custom rule-set also contains rules to
+not log netbios nameserver, netbios datagram, and RPC portmap network traffic,
+all of which can fill up your logs rather quickly on a large network.  Later,
+you can add custom rules which better fit the specific needs of your
+environment.  If you modify the custom file, you should rerun the Bastille
+back-end (bastille -b) to apply the new rule-set.
+
+WARNING: Changing this file has the ability to either increase or decrease
+the security of your system.  After applying this custom configuration,
+be sure to double-check the active rule-set and your ipf.conf file to make
+sure that the result is what you intended.
+
+WARNING: If IPFilter is not yet enabled on your system, Bastille will enable
+it.  This may bring down the network stack for about 10-15 seconds.  Though
+it is likely that all connections will be restored at that point, all connections
+will suspend, and some may be lost (including Bastille's UI).  If your Bastille
+connection is lost, you can check the results by running \"bastille -l" to
+see if Bastille correctly applied your config, or the action log for more detail.
+Alternatively, you may consider saving the Bastille config file and then running
+bastille -b on a console to ensure you see Bastille\'s full output real-time.
+
+(c) Block anything else, including all incoming traffic which you are not
+asked about explicitly.
+
+If this is the first time you are using Bastille to configure your firewall,
+you will be asked about several service specific options if the applicable software
+appears to be installed.  If you have already configured a firewall using Bastille,
+you will only be asked about protocols which are currently allowed by the Bastille
+configuration.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION, see TODO list for
+details)"
+QUESTION: "Should Bastille setup basic firewall rules with these properties?"
+QUESTION_AUDIT: "Is there a Bastille-set-up IPFilter firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: N
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+SKIP_CHILD: install_ipfilter
+YES_CHILD: block_netrange
+NO_CHILD: install_ipfilter
+PROPER_PARENT: mail_config
+
+LABEL: block_netrange
+SHORT_EXP: "The basic IPFilter rules setup by Bastille only allow network traffic
+for services associated with software that Bastille believes is installed on the system.
+All other incoming traffic is blocked by default.  If you wish to allow additional incoming 
+traffic based on the IP address of the sending host, you may enter specific IP addresses here
+(with an optional netmask.)  Otherwise, answer 'N'."  
+QUESTION: "Do you want to allow additional incoming network traffic from a select list of IP addresses?"
+QUESTION_AUDIT: "What additional select IP addresses are allowed in by IPFilter?"
+YN_TOGGLE: 0
+DEFAULT_ANSWER: 192.168.1.0/255.255.255.0 10.10.10.10
+REG_EXP: "^((\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?)\s+)*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+SKIP_CHILD: block_SecureShell
+YES_CHILD: block_SecureShell
+NO_CHILD: block_SecureShell
+PROPER_PARENT: configure_ipfilter
+
+LABEL: block_SecureShell
+SHORT_EXP: "Secure Shell is the best replacement for telnet, remote shell,
+and ftp.  It is authenticated and encrypted.  If you want remote access
+to your machine, this is the best way to do it.  You should only block
+Secure Shell access if you have an alternate, secure method to manage
+your machine (such as physical access to the console or a secure terminal
+server) or if you do not use Secure Shell.
+
+OTHERWISE, ANSWER NO TO THIS QUESTION."
+QUESTION: "Do you want to BLOCK incoming Secure Shell connections with IPFilter?"
+QUESTION_AUDIT: "Are incoming Secure Shell connections blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: N
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+YES_CHILD: block_wbem
+NO_CHILD: block_wbem
+PROPER_PARENT: block_netrange
+
+LABEL: block_wbem
+SHORT_EXP: "Web-Based Enterprise Management(WBEM) is a Distributed Management
+Task Force (DMTF) industry standard, http(s)-based management protocol which
+features encryption and authentication.  It is much better than SNMP, which
+has a history of security issues and is by default a clear-text, unauthenticated
+protocol.  Like SNMP, WBEM can be a powerful aid in managing multiple  machines and
+it is by default much more secure.  However, any service can be a security risk,
+so you should block it if you are not going to use it.
+
+Note that WBEM is required for many HP management applications, such as
+System Insight Manager, ParMgr, and others.
+
+WARNING: WBEM uses a configurable port.  IPFilter will only be able to find
+this port if you have an appropriate entry for wbem-https in /etc/services."
+QUESTION: "Do you want to BLOCK incoming WBEM https connections with IPFilter?"
+QUESTION_AUDIT: "Are WBEM-https requests blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: N
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: block_SecureShell
+YES_CHILD: block_hpidsagent
+NO_CHILD: block_hpidsagent
+
+LABEL: block_hpidsagent
+QUESTION: "Do you want to BLOCK incoming HIDS agent connections with IPFilter?"
+QUESTION_AUDIT: "Are incoming HIDS agent connections blocked via a Bastille-set-up firewall?"
+SHORT_EXP: "HP-UX Host Intrusion Detection System (HIDS) enhances host-level
+security with near real-time automatic monitoring of each
+configured host for signs of potentially damaging intrusions.
+
+HIDS consists of a management Graphical User Interface (GUI), called the
+System Management GUI, that allows the administrator to configure, control,
+and monitor the HIDS system, and a host-based agent which is an intrusion
+detection sensor, that gathers system data, monitors system activity, and
+issues intrusion alerts.  The communication between the GUI and agents is
+encrypted.  The agent listens on port 2985 for incoming connections
+initiated by the GUI.
+
+Answer YES if you are NOT running the HP-UX Host Intrusion
+Detection System (HIDS) agent on this host.  Also answer YES if you ARE
+running the HP-UX Host HIDS agent on this host BUT are you are running the
+HP-UX Host HIDS GUI LOCALLY on this host (i.e., you are NOT remotely
+managing this agent by running the GUI on a remote host).  Answer NO if
+you are running an HP-UX Host HIDS agent locally on this host AND you are
+remotely managing this agent with a remote HP-UX Host HIDS System Management
+GUI.
+
+NOTE:   You need to install and configure HIDS separately from
+Bastille.  See http://www.hp.com/security for more information.
+
+NOTE:  What HIDS does not do:
+
+1. HIDS is not a replacement for comprehensive security policies and
+procedures. You must define and implement such security policies and
+procedures and configure HIDS to enforce them. A lack of such policies,
+procedures, and configuration can result in attacks that go undetected
+and/or the reporting of many false alerts; that is, HIDS will work but
+your system may still be vulnerable.
+
+2. HIDS does not prevent the onset of attacks. If your system is
+vulnerable to attacks, those vulnerabilities will remain even after HIDS
+is installed.
+
+3. HIDS will not find static security flaws on a system. For example, if
+the password file contained an illegitimate account before HIDS was
+installed, that illegitimate account remains a vulnerability even after
+HIDS is installed and operational. Furthermore, HIDS cannot authenticate
+users of a valid account. For example, if users share password information,
+HIDS cannot ascertain the identity of an unauthorized user gaining
+access to a system via a legitimate account login."
+YN_TOGGLE: 1
+DEFAULT_ANSWER: N
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: block_wbem
+YES_CHILD: block_hpidsadmin
+NO_CHILD: block_hpidsadmin
+
+LABEL: block_hpidsadmin
+QUESTION: "Do you want to BLOCK incoming connections to the HIDS GUI with IPFilter?"
+QUESTION_AUDIT: "Are incoming HIDS GUI connections blocked via a Bastille-set-up firewall?"
+SHORT_EXP: "The HP-UX Host Intrusion Detection System (HIDS)
+Management Graphical User Interface (GUI) listens on port 2984
+for incoming connections initiated by HIDS agents on each configured host.
+
+Answer YES if you are NOT running the HP-UX Host HIDS GUI on this host.  Also
+answer YES if you are running the HP-UX Host HIDS GUI on this host, and it
+only manages one LOCAL HIDS agent running on this host (i.e., you are not
+managing any HIDS agents on any remote hosts using this GUI).
+
+Answer NO if you are running an HP-UX Host HIDS GUI on this host AND you
+are managing some remote HIDS agents.
+
+Note: You need to install and configure HIDS separately from
+Bastille.  See http://www.hp.com/security for more information."
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: block_hpidsagent
+YES_CHILD: block_webadmin
+NO_CHILD: block_webadmin
+
+LABEL: block_webadmin
+SHORT_EXP: "Port 1188 is used by web based tools that are replacements for
+areas of SAM.
+
+The listener on this port is HP's release of Apache with a custom
+configuration file that loads only a minimum set of modules.  It is
+also restricted to use https for all communication and can only be used
+to run the system management tools.  In general, this web server is
+running only when in use.  It exits after a period of inactivity.
+
+Disabling this port will mean that some system administration functions
+will only be available using the command line."
+QUESTION: "Do you want to BLOCK incoming web admin connections w/ IPFilter?"
+QUESTION_AUDIT: "Are incoming web admin connections blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: block_hpidsadmin
+YES_CHILD: block_ping
+NO_CHILD: block_webadminautostart
+SKIP_CHILD: block_ping
+
+LABEL: block_webadminautostart
+SHORT_EXP: "Port 1110 is used to auto start the web administration server
+on port 1188.  This port is not used unless configured with the 'waconf'
+command.
+
+The listener on this port is inetd.  When a request is made on this port,
+inetd runs a program that checks for a valid url and then starts the web
+administration server and redirects the requesting browser to port 1188.
+
+Disabling this port will keep the auto start feature from working.  Local
+starting of the web administration server will continue to work.
+
+Connections on this port are neither authenticated nor encrypted, but this
+should be okay because of the limited functionality on this port.  It is
+important, as is the case with all web pages, when using the autostart
+feature to verify the auto-redirect URL to make sure it says 'https://'
+and has the correct hostname (and a valid certificate that matches the host)."
+QUESTION: "Do you want to BLOCK external webadmin tool autostarts w/ IPFilter?"
+QUESTION_AUDIT: "Are incoming webadmin tool autostarts blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: N
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT:  block_webadmin
+YES_CHILD: block_ping
+NO_CHILD: block_ping
+
+
+LABEL: block_ping
+SHORT_EXP: "ICMP echo or \"ping\" is used for device discovery for a number of
+applications, including System Insight Manager, and OpenView Netowrk node
+manager.  Though this is commonly also used by hackers to discover hosts, the
+information returned to them is fairly minimal.  In addition, ping has
+had a number of vulnerabilities in its past, but those have all pen patched, and
+there have not been any in the past few years (as of release of this text).
+For this reason, you should block incoming icmp-echo requests if you do not need
+management applications to discover the device."
+QUESTION: "Do you want to BLOCK incoming ICMP echo requests with IPFilter?"
+QUESTION_AUDIT: "Are incoming ICMP echo requests blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+YES_CHILD: block_cfservd
+NO_CHILD: block_cfservd
+PROPER_PARENT: block_webadmin
+
+LABEL: block_cfservd
+SHORT_EXP: "cfengine provides policy-based configuration management for groups
+of systems and Serviceguard clusters.  A central \"policy host\" acts as a
+repository for the configuration policy files and reference files
+that are distributed to managed clients. Typically managed clients perform
+synchronization runs at administrator defined intervals, for example,
+via a cron job on the managed client.
+The cfrun utility can also be used by the administrator on the policy host
+to contact each managed client and request an immediate or \"on-demand\"
+synchronization run.
+If this system should allow on-demand synchronization requests,
+you should answer \"No\" to the this question, otherwise answer \"Yes\"."
+QUESTION: "Do you want to BLOCK incoming cfrun requests with IPFilter?"
+QUESTION_AUDIT: "Are incoming cfrun requests blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+YES_CHILD: block_DNSquery
+NO_CHILD: block_DNSquery
+PROPER_PARENT: block_ping
+
+LABEL: block_DNSquery
+SHORT_EXP: "DNS query connections should only be allowed on DNS
+servers.  If this machine is a DNS server for other machines, then you
+should answer \"No\" to this question.  Otherwise, you should block
+DNS queries by answering \"Yes\"."
+QUESTION: "Do you want to BLOCK incoming DNS query connections with IPFilter?"
+QUESTION_AUDIT: "Are incoming DNS-query connections blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+YES_CHILD: install_ipfilter
+NO_CHILD: block_DNSzonetransfer
+SKIP_CHILD: install_ipfilter
+PROPER_PARENT: block_cfservd
+
+LABEL: block_DNSzonetransfer
+SHORT_EXP: "DNS zone transfer connections should only be allowed on master DNS
+servers.  If this machine is a DNS server for other machines and has slave
+DNS servers which need to be able to do zone transfers, you should
+should answer \"No\" to this question.  Otherwise, you should answer \"Yes\"."
+QUESTION: "Do you want to BLOCK incoming DNS zone transfers with IPFilter?"
+QUESTION_AUDIT: "Are incoming DNS zone-transfer requests blocked via a Bastille-set-up firewall?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+YES_CHILD: install_ipfilter
+NO_CHILD: install_ipfilter
+SKIP_CHILD: install_ipfilter
+PROPER_PARENT: block_DNSquery
+
+LABEL: install_ipfilter
+SHORT_EXP: "Firewalls generally make up the first line of defense in any
+network security architecture.  IPFilter is a free host-based firewall
+which is supported and available for HP-UX.  Using IPFilter, you can
+write rules which allow only approved inbound and outbound network traffic
+to pass through your firewall.  This can dramatically improve your system's
+overall resistance to network attacks by limiting the number of ways your
+system could be attacked in the first place.  Note that it can take significant
+of work and expertise to properly configure and maintain firewall rules, and the
+installation process loads a kernel module and requires a reboot.
+
+If you re-run Bastille after installing IPFilter, Bastille will assist
+you with your IPFilter configuration.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Would you like information on how to get a copy of IPFilter?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+YES_CHILD: tmpdir
+NO_CHILD: tmpdir
+SKIP_CHILD: tmpdir
+PROPER_PARENT: configure_ipfilter
+
+

@@ -1,0 +1,115 @@
+FILE: Printing.pm
+
+LABEL: printing
+SHORT_EXP: "If this machine is not going to need to print, you should stop
+the print scheduler and disable the associated print daemon
+utilities."
+LONG_EXP: "If this machine is not going to need to print, you should stop
+the print scheduler and disable the associated print daemons
+utilities.
+
+On Linux, this will include the restriction of the daemon file permissions.
+On HP-UX, this will include the disablement of the xprintserver
+and pd client services where applicable.
+"
+QUESTION: "Would you like to disable printing? [N]"
+QUESTION_AUDIT: "Is printing disabled?"
+REQUIRE_DISTRO: LINUX HP-UX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: printing_cups
+NO_CHILD: printing_cups
+PROPER_PARENT: chrootapache
+
+LABEL: printing_cups
+SHORT_EXP: "If this machine is not going to need to print, you should stop
+the print scheduler and restrict the permissions on all the printing
+utilities.
+
+This is only recommended if this machine will not be used for printing
+in the near future."
+LONG_EXP: "If this machine is not going to need to print, you should stop
+the print scheduler and restrict the permissions on all the printing
+utilities.
+
+On Linux, you could revert this later by typing:
+
+ # /bin/chmod 0755 /usr/bin/lpr /usr/bin/lprm /usr/bin/lpstat
+ # /bin/chmod 04755 /usr/bin/lppasswd
+
+ # /sbin/chkconfig cups on
+
+This is only recommended if this machine will not be used for printing
+in the near future.  If you deactivate this, you might want to write
+down the commands above in case you decide to re-enable printing later."
+QUESTION: "Would you like to disable printing? [N]"
+QUESTION_AUDIT: "Is printing disabled?"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: printing_cups_lpd_legacy
+NO_CHILD: printing_cups_lpd_legacy
+PROPER_PARENT: printing
+
+LABEL: printing_cups_lpd_legacy
+SHORT_EXP: "CUPS has support for legacy LPD-based print spooling.
+If this machine does not need to share out its attached printer
+with other hosts or at least does not need to do it via the LPD 
+protocol, you can safely deactivate cups-lpd.
+
+This question does not deactivate CUPS -- it only deactivates 
+the legacy LPD support offered by cups-lpd."
+LONG_EXP: "CUPS has support for legacy LPD-based print spooling.
+If this machine does not need to share out its attached printer
+with other hosts or at least does not need to do it via the LPD 
+protocol, you can safely deactivate cups-lpd.
+
+This question does not deactivate CUPS -- it only deactivates 
+the legacy LPD support offered by cups-lpd."
+QUESTION: "Would you like to disable CUPS' legacy LPD support? [N]"
+QUESTION_AUDIT: "Is CUPS' legacy LPD support disabled?"
+REQUIRE_DISTRO: RH SE
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: printing_osx
+NO_CHILD: printing_osx
+PROPER_PARENT: printing_cups
+
+LABEL: printing_osx
+SHORT_EXP: "If this machine is not going to need to print, you should stop
+the print scheduler and restrict the permissions on all the printing
+utilities.
+
+This is only recommended if this machine will not be used for printing
+in the near future."
+LONG_EXP: "If this machine is not going to need to print, you should stop
+the print scheduler and restrict the permissions on all the printing
+utilities.
+
+On Mac OS X, you could revert this later by typing:
+
+ # /bin/chmod 06555 /usr/bin/lpr /usr/bin/lprm
+
+and changing CUPS=-NO- to CUPS=-YES- in /etc/hostconfig.
+
+This is only recommended if this machine will not be used for printing
+in the near future.  If you deactivate this, you might want to write
+down the commands above in case you decide to re-enable printing later."
+QUESTION: "Would you like to disable printing? [N]"
+QUESTION_AUDIT: "Is printing disabled?"
+REQUIRE_DISTRO: OSX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ftpgeneral
+NO_CHILD: ftpgeneral
+PROPER_PARENT: printing_cups_lpd

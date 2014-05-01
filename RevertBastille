@@ -1,0 +1,154 @@
+#!/usr/bin/perl
+
+# This script provides revert functionality for Bastille
+# Copyright 2000, Jay Beale
+# Copyright 2001-2003, 2006 Hewlett Packard Development Company, L.P.
+
+# This script simply runs the revert shell command which was built during the course of the
+# Back-end run, then removes it.  This script additionally verifies that changes made to
+# configuration files that Bastille has manipulated after the run of Bastille are noted to
+# the user and a copy of the changed version is backed up to allow for merging manually later.
+
+
+use Getopt::Long;
+use English;
+use Cwd;
+use File::Path;
+use File::Basename;
+use File::Copy;
+
+
+use lib "/usr/lib","/usr/lib/perl5/site_perl","/usr/lib/Bastille", "/usr/lib/perl5/site_perl/5.8.0/i586-linux-thread-multi";
+
+require Bastille::API;
+import Bastille::API;
+
+# Process command-line arguments...
+my $nodisclaim = 0;
+
+if( Getopt::Long::GetOptions( "n"     => \$nodisclaim)) {
+    $error = 0; # no parse error
+
+} else {
+    $error = 1; # parse error
+}
+
+
+if ( $error ) { # GetOptions didn't parse all of the args
+    print &getGlobal('ERROR',"usage");
+    exit (1);
+}
+
+&ConfigureForDistro;
+
+&showDisclaimer($nodisclaim);
+
+my $revert_script=&getGlobal('BFILE', "revert-actions");
+if ( -e $revert_script ){
+
+  # protect against simultaneous runs of Bastille
+  if (-e &getGlobal('BFILE',"lockfile")){ 
+       &B_log("ERROR","Another copy of Bastille is currently making changes.  ".
+                  "If you are sure yours is the only Bastille process running, ".
+                  "delete the file " . &getGlobal('BFILE','lockfile') . " to reset lock.\n");
+       exit 1;
+  }else{
+      system(&getGlobal('BIN',"touch")." ". &getGlobal('BFILE',"lockfile"));
+  }
+
+  print "NOTE:    Reverting system state...\n\n";
+
+  # This section determines if changes were made outside of Bastille
+  # for each file that Bastille has manipulated.
+  # run B_check_sum for each file in sum.csv
+  my @changedFiles;
+  # read the cksum information stored from the latest run of Bastille's back-end
+  &B_read_sums;
+  # for every file that Bastille made modifications to during BastilleBackend
+  # runs since the last revert
+  for my $file (&listModifiedFiles) {
+      # check and record current sum status
+      if(not(&B_check_sum($file))) {
+	  # if the file has changed then note the change and
+	  # backup the changed file
+	  my $oldconfig = &getGlobal('BDIR',"oldconfig");
+	  if( ! -d $oldconfig ) {
+	      mkpath( &getGlobal('BDIR',"oldconfig"),0,0700 );
+	  }
+	  if ($file ne &getGlobal('BFILE',"TODO")) {
+	      push @changedFiles,$file;
+	  }
+	  
+	  my $dirname = dirname($file);
+	  
+	  if( ! -d $oldconfig . $dirname ){
+	      mkpath($oldconfig . $dirname,0,0700);
+	  }
+	  if ( copy("$file", "${oldconfig}${file}")) {
+	      &B_log ("WARNING", "Failed to copy $file to ${oldconfig}${dirname}.\n");
+	  }
+      }
+  }
+  
+  # removing the list of sums
+  my $sumfile=&getGlobal('BFILE',"sum.csv");
+  unless (unlink $sumfile) {
+      &B_log("WARNING","Failed to remove $sumfile. \n");  
+  }
+  
+  
+   # clear out "torevert" file so it doesn't keep on growing
+   if ( -e &getGlobal('BFILE',"TOREVERT")) { 
+       # This isn't defined on Linux right now, so we'll use this step to 
+       # prevent visible errors on this file's nonexistence. 
+    
+       my $revfile = &getGlobal('BFILE',"TOREVERT"); 
+       if ( -e $revfile ) { 
+           # This file won't exist if no actions ran that use it. 
+           unlink $revfile; 
+       } 
+   } 
+
+    if (system($revert_script)) {  # run revert script
+	&B_log("ERROR","Failed to run revert script.\n");
+    }
+    else {
+        # move script to ensure we don't run it again
+	unless(rename("$revert_script", "${revert_script}.last")){
+	    &B_log("WARNING","Failed to move revert script out of the way.\n");
+	}
+	unless(unlink(&getGlobal('BFILE',"last.config"))) {
+	    &B_log("WARNING","Failed to remove " .
+		   &getGlobal('BFILE',"last.config") . "\n");
+	}
+    
+    }
+
+    # Remove lockfile
+    unless (unlink &getGlobal('BFILE',"lockfile")){  
+        &B_log("ERROR","Unable to delete Bastille lock file: ".
+	           &getGlobal('BFILE','lockfile')."\n");
+    }
+
+
+  if ($#changedFiles >= 0) {
+    my $changedList = "";
+
+    foreach my $file (@changedFiles) {
+	$changedList .="$file\n";
+    }
+    
+    &B_log( "WARNING","The following files have been changed manually since Bastille was run:\n" .
+	       "##################################################################\n\n" .
+	       $changedList . "\n" .	       
+	       "##################################################################\n" .
+	       "You will need to merge the resulting changes manually.  The user-modified\n" .
+	       "versions of these files can be found in the following directory:\n\n" . 
+	       &getGlobal('BDIR',"oldconfig") . "\n\n" .
+	       "##################################################################\n\n");
+  }
+
+} else {
+    &B_log("NOTE","System is in original state, no action taken.\n");
+    exit 0;
+}

@@ -1,0 +1,457 @@
+FILE: FilePermissions.pm
+
+LABEL: generalperms_1_1
+SHORT_EXP: "In general, the default file permissions set by most vendors are
+fairly secure.  To make them more secure, though, you can
+remove non-root user access to some administrator functions."
+LONG_EXP: "In general, the default file permissions set by most vendors are
+fairly secure.  To make them more secure, though, you can remove non-root
+user access to some administrator functions.
+
+If you choose this option, you'll be changing the permissions on
+some common system administration utilities so that they're not readable or
+executable by users other than root.  These utilities (which include linuxconf,
+fsck, ifconfig, runlevel and portmap) are ones that most users should never
+have a need to access.  This option will increase your system security, but
+there's a chance it will inconvenience your users."
+QUESTION: "Would you like to set more restrictive permissions on the
+administration utilities? [N]"
+QUESTION_AUDIT: "Are more restrictive permissions on the administration utilities set?"
+REQUIRE_DISTRO: RH MN DB SE TB
+YN_TOGGLE: 1
+YES_EXP:
+NO_EXP:
+DEFAULT_ANSWER: "N"
+REG_EXP: "^Y$|^N$"
+YES_CHILD: world_writeable
+NO_CHILD: world_writeable
+PROPER_PARENT: spc_run
+
+LABEL: world_writeable
+SHORT_EXP: "Bastille can scan your system for world-writeable directories,
+including base OS, 3rd party applications, and user directories.  Bastille
+will then create a script which you can edit to suit your needs and then
+run to tighten these permissions.
+
+Changing the permissions of directories in this way has the potential to
+break compatibility with some applications and requires testing in
+your environment.
+
+Note: The changes made by this script are NOT supported by HP.  They have
+a low likelihood of breaking things in a single purpose environment, but
+are known to break some applications in very subtle ways in a general purpose
+environment (For example, applications which rely on unique process id's in
+/tmp when run by different users may break when the process id's are recycled,
+or programs which are run by different users but create logs in a common
+directory may fail.  Other examples are listed in the long explanation.)
+
+As you run the script, it will create a \"revert-directory-perms.sh\"
+script which will allow you to revert to a supported state (independent of
+the rest of the HP-UX Bastille configurations, which are supported). 
+Running 'bastille -r' will revert all Bastille changes, including
+running the revert-directory-perms.sh script.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+LONG_EXP: "Bastille can scan your system for world-writeable directories,
+including base OS, 3rd party applications, and user directories.
+Bastille will then create a script which you can edit to suit your needs
+and then run to tighten these permissions.
+
+Changing the permissions of directories in this way has the potential to
+break compatibility with some applications and requires testing in
+your environment.
+
+Note: The changes made by this script are NOT supported by HP.  They have
+a low likelihood of breaking things in a single purpose environment, but
+are known to break some applications in very subtle ways in a general purpose
+environment.  Here are some examples of known issues:
+
+ - /tmp and /var/tmp sticky bit: applications which rely on unique
+process id's in /tmp when run by different users may break when the process
+id's are recycled (cleaning tmp directories regularly may alleviate this
+problem)
+
+ - Log directories (most of which are named with the word \"log\" in them): 
+Programs which are run by different users but create and/or write logs in
+a common directory may fail to log actions.  This includes GUI error logs
+in some versions of HP-UX diagnostic tools.
+
+ - \"cat\" directories such as those in /usr/share/man are used by the
+\"man\" command to write pre-processed man pages.  Eliminating the
+world-writeable bit will cause a degradation in performance because
+the man page will have to be reformatted every time it is accessed.
+
+ - Some directories may have incorrect owners and/or groups.  Eliminating
+world-writeable permissions on these directories have no effect if the
+owner/group is set properly.  For example, one problem with HP Openview
+running without world-writeable directories was corrected by the following:
+
+/usr/bin/chown root:sys /var/opt/OV/analysis/ovrequestd/config
+
+This change has not been fully tested, but was shown to work when tested
+in a limited, single-purpose environment.
+
+ - Change the directory /var/obam/translated may have an impact on non-root
+users viewing help in obam (the GUI library used by swinstall, SAM,
+older versions of ServiceControl Manager, and others)
+
+ - Eliminating the world-writeable permissions on socket directories has been
+shown to stop the X server from operating properly.  However, setting the
+sticky bit instead (what this script will do by default) did not have the
+same effects.
+
+ - There are several other directories which have world-writeable permissions.
+Some of these are shipped with HP-UX, others are shipped with 3rd party
+products, and others may have been created by users without an appropriate
+umask set.  Bastille will help you find those directories so that you can
+make appropriate decisions for your environment.  The full impact of making
+these changes has not been analyzed.
+
+As you run the script, it will create a \"revert-directory-perms.sh\"
+script which will allow you to revert to a supported state (independent of
+the rest of the HP-UX Bastille configurations, which are supported). 
+Because of the potential for very subtle breakage, you should also keep
+a record of any changes which you make manually to your system so that
+you can revert them to help debug any problems which you run into.
+Running 'bastille -r' will revert all Bastille changes, including
+running the revert-directory-perms.sh script, but it may not revert
+changes you have made manually.
+
+The fact that a directory is world-writeable does not imply that a
+vulnerability exists, because it depends on how the data stored in that
+directory is used.  Still, it is a security best-practice to only grant
+world-write permissions on temporary directories, such as /tmp and /var/tmp,
+and to set the \"sticky\" bit on those directories.  By default, the generated
+script will set the \"sticky\" bit on all world-writeable directories.
+
+If the \"sticky\" bit is set on a directory, only the file owner, directory
+owner, and super-user are allowed to rename or delete (and thus replace)
+the file, regardless of the group and world write permissions on the directory. 
+The ownerships and permissions of the files and subdirectories in that
+directory determine how those files and subdirectories can be modified,
+respectively.  You can tell that the \"sticky\" bit is set if there is a
+\"t\" in the last permissions column.  (e.g.: drwxrwxrwt).  Left unedited,
+the created script will set the \"sticky\" bit on any world-writeable
+directory.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+YES_EXP: "If you find a new security vulnerability in an HP product, you should
+report it to security-alert@hp.com.   Please encrypt any exploit
+information using the security-alert PGP key, available from your local
+key server, or by sending a message with a -subject- (not body) of 'get
+key' (no quotes) to security-alert@hp.com.
+
+If you find an application which requires world-writeable directories to operate
+properly, you should report it to the vendor of that application, as well as to
+the Bastille development team so we can inform other users. 
+(team monitors the security discussion list at itrc.hp.com)"
+NO_EXP: "If you find a new security vulnerability in an HP product, you should
+report it to security-alert@hp.com.   Please encrypt any exploit
+information using the security-alert PGP key, available from your local
+key server, or by sending a message with a -subject- (not body) of 'get
+key' (no quotes) to security-alert@hp.com."
+QUESTION:  "Should Bastille scan for world-writeable directories?"
+QUESTION_AUDIT: "Is the initial Bastille world-writeable directory scan available?"
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+YES_CHILD: suid
+NO_CHILD: suid
+PROPER_PARENT: generalperms_1_1
+REQUIRE_DISTRO: HP-UX
+REG_EXP: "^Y$|^N$"
+
+LABEL: suid
+SHORT_EXP: "The following questions all pertain to disabling \"SUID root\"
+permission for particular programs. This permission allows non-root users to run
+these programs, increasing convenience but decreasing security.  If a
+security weakness or vulnerability is found in these programs, it can be
+exploited to gain root-level access to your computer through any user
+account.
+
+If you answer \"Yes\" and then realize later that you do need SUID permissions
+on a specific program, you can always turn it back on later with chmod u+s <file name>."
+QUESTION:
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD:suidmount
+NO_CHILD:suidmount
+PROPER_PARENT: world_writeable
+
+LABEL:suidmount
+SHORT_EXP: "Mount and umount are used for mounting (activating) and
+un-mounting (deactivating) drives that were not automatically mounted at
+boot time.  This can include floppy and CD-ROM drives.  Disabling SUID would
+still allow anyone with the root password to mount and unmount drives."
+QUESTION: "Would you like to disable SUID status for mount/umount?"
+QUESTION_AUDIT: "Is SUID status for mount/umount disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidping
+NO_CHILD: suidping
+PROPER_PARENT:suid
+
+LABEL:suidping
+SHORT_EXP: "Ping is used for testing network connectivity.  Specifically it's for
+testing the  ability of the network to get a packet from this machine to
+another and back.  The ping program is SUID since only the root user can
+open a raw socket. Since, however, it is often used only by the person responsible
+for networking the host, who normally has root access, we recommend
+disabling SUID status for it."
+QUESTION: "Would you like to disable SUID status for ping? [Y]"
+QUESTION_AUDIT: "Is SUID status for ping disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suiddump
+NO_CHILD: suiddump
+PROPER_PARENT:suidmount
+
+LABEL: suiddump
+SHORT_EXP: "Dump and restore are used for backing up file systems and
+restoring them from disk.  If used by an attacker, they could be used to
+construct an alternate file system in place.  Further, anyone who backs up
+the machine and restores from backup should have authorization and special
+access granted by the administrator.  It's extremely unlikely that there will
+be any problems with disabling SUID for dump and restore."
+QUESTION: "Would you like to disable SUID status for dump and restore? [Y]"
+QUESTION_AUDIT: "Is SUID status for dump and restore disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidcard
+NO_CHILD: suidcard
+PROPER_PARENT: suidping
+
+LABEL: suidcard
+SHORT_EXP: "Cardctl is used for controlling PCMCIA devices, primarily found
+in laptop or notebook computers.  Non-admins shouldn't have rights to
+modify hardware or devices, so you should probably disable SUID status for
+this utility even if this is a notebook or laptop.  If this isn't a laptop or
+notebook computer, then you probably don't have any PCMCIA devices, and
+you should definitely disable this."
+QUESTION: "Would you like to disable SUID status for cardctl? [Y]"
+QUESTION_AUDIT: "Is SUID status for cardctl disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidat
+NO_CHILD: suidat
+PROPER_PARENT: suiddump
+
+LABEL: suidat
+SHORT_EXP: "\"at\" is used for scheduling an individual task to run at a single
+later time. There have historically been many exploits that take advantage of
+weaknesses in \"at\". Virtually all of the necessary functionality of \"at\"
+can be found in cron (and removing cron is not practical) so there is
+no need to retain privileged access for \"at\"."
+QUESTION: "Would you like to disable SUID status for at? [Y]"
+QUESTION_AUDIT: "Is SUID status for at disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suiddos
+NO_CHILD: suiddos
+PROPER_PARENT:suidcard
+
+LABEL: suiddos
+SHORT_EXP: "DOSEMU is a DOS emulator used to run older DOS programs. 
+Any use of a second operating system, or emulation, opens up a whole new
+area of security problems.  We recommend that only root have access to
+this type of application, unless your users have a pressing need for it."
+QUESTION: "Would you like to disable SUID status for DOSEMU? [Y]"
+QUESTION_AUDIT: "Is SUID status for DOSEMU disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidnews
+NO_CHILD: suidnews
+PROPER_PARENT: suidat
+
+LABEL: suidnews
+SHORT_EXP: "Ordinary users should not be able to start (or stop) the news
+server.  For this reason, we'd like to disable SUID status for the INN news
+server tools inndstart and startinnfeed."
+QUESTION: "Would you like to disable SUID status for news server tools? [Y]"
+QUESTION_AUDIT: "Is SUID status for news server tools disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidprint
+NO_CHILD: suidprint
+PROPER_PARENT: suiddos
+
+LABEL: suidprint
+SHORT_EXP: "If this machine is not going to be using printers, then you should
+disable the SUID status of the printing utilities.  These utilities have
+a history of security vulnerabilities.  This will disallow local, non-root
+users from initiating, modifying, and canceling print requests.  Later,
+we'll ask about disabling printing entirely including stopping the print
+scheduler."
+QUESTION: "Would you like to disable SUID status for printing utilities? [N]"
+QUESTION_AUDIT: "Is SUID status for printing utilities disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidrtool
+NO_CHILD: suidrtool
+PROPER_PARENT: suidnews
+
+LABEL: suidrtool
+SHORT_EXP: "The BSD r-tools (rsh/remsh, rcp, rlogin, rdist, etc.) have
+traditionally been used to make remote connections to other machines. 
+They rely on IP addresses for authentication and transmit data in clear
+text (including passwords).  Tools are now available which allow you to
+spoof (fake) IP addresses as well as to monitor and/or hijack protocols
+which use clear-text.  All of the same functionality can be found with the more
+secure replacement commands ssh and scp.  Because of these insecurities,
+ordinary users should not be allowed to use the r-tools, and admins should
+use them only in cases where there are no other connection methods
+available.
+
+Bastille can remove the permissions on the r-tools so that non-root users
+cannot run them and administrators will have to take additional steps to
+re-enable them when needed.  This will disable the \"client\" side of these
+tools, so that people cannot use them to connect to other machines."
+LONG_EXP: "The BSD r-tools (rsh/remsh, rcp, rlogin, rdist, etc.) have
+traditionally been used to make remote connections to other machines. 
+They rely on IP-based authentication, which means
+that you can allow anyone with (for instance) root access on 192.168.1.1 to
+have root access on 192.168.1.2.  Administrators and other users have
+traditionally found this useful, as it lets them connect from one host to
+another without having to retype a password.
+
+The problem with IP-based authentication, however, is that an intruder can
+craft \"spoofed\" or faked packets which claim to be from a trusted machine. 
+Since the r-tools rely entirely on IP addresses for authentication, a spoofed
+packet will be accepted as real, and any hacker who claims to be from a
+trusted host will be trusted and given access to your machine.
+
+These tools also transmit all of your data in clear-text, including passwords.
+
+Tools are now available which allow you to spoof (fake) IP addresses as well
+as to monitor and/or hijack protocols which use clear-text.  All of the same
+functionality can be found with the more secure replacement commands ssh and
+scp.  Because of these insecurities, ordinary users should not be allowed
+to use the r-tools, and admins should use them only in cases where there
+are no other connection methods available.
+
+Bastille can remove the permissions on the r-tools so that ordinary users
+cannot run them and admins will have to take additional steps to re-enable
+them when needed.  This will disable the \"client\" side of these tools,
+so that people cannot use them to connect to other machines."
+QUESTION: "Would you like to disable the r-tools? [Y]"
+QUESTION_AUDIT: "Are the r-tools disabled?"
+REQUIRE_DISTRO:	LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidusernetctl
+NO_CHILD: suidusernetctl
+PROPER_PARENT: suidprint
+
+LABEL: suidusernetctl
+SHORT_EXP: "usernetctl is a utility that allows ordinary users to control the
+network interfaces.  In general, there's no reason for anyone other than the
+system administrator to control network interfaces."
+QUESTION: "Would you like to disable SUID status for usernetctl? [Y]"
+QUESTION_AUDIT: "Is SUID status for usernetctl disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidtrace
+NO_CHILD: suidtrace
+PROPER_PARENT: suidrtool
+
+LABEL: suidtrace
+SHORT_EXP: "The traceroute utility is used to test network connectivity. 
+It is useful for debugging network problems, but it is generally not necessary,
+especially for nn-privileged users.  If non-root users will be needing to
+debug network connections, you can leave the SUID bit on traceroute. 
+Otherwise, you should disable it."
+QUESTION: "Would you like to disable SUID status for traceroute? [Y]"
+QUESTION_AUDIT: "Is SUID status for traceroute disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidXwrapper
+NO_CHILD: suidXwrapper
+PROPER_PARENT: suidusernetctl
+
+LABEL: suidXwrapper
+SHORT_EXP: "The Xwrapper program is a Set-UID root wrapper written so that
+the X server binaries wouldn't all have to be Set-UID.
+
+This program does not need to be Set-UID if you won't be using this machine
+as a graphical workstation at all.  One specific case where you can very
+safely answer yes is when this system will be running without a monitor of
+any kind."
+QUESTION: "Would you like to disable SUID status for Xwrapper? [N]"
+QUESTION_AUDIT: "Is SUID status for Xwrapper disabled?"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: suidXFree86
+NO_CHILD: suidXFree86
+PROPER_PARENT: suidtrace
+
+
+LABEL: suidXFree86
+SHORT_EXP: "The XFree86 program is the X server binary in XFree86 4.  For
+ordinary users to run X, this binary (or a world-executable wrapper) must
+be Set-UID root.  In this system's case, the XFree86 binary is Set-UID.
+
+This program does not need to be Set-UID if you won't be using this machine
+as a graphical workstation at all.  One specific case where you can very
+safely answer yes is when this system will be running without a monitor of
+any kind."
+QUESTION: "Would you like to disable SUID status for XFree86? [N]"
+QUESTION_AUDIT: "Is SUID status for XFree86 disabled?"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: protectrhost
+NO_CHILD: protectrhost
+PROPER_PARENT: suidXwrapper

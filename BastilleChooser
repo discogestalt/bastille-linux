@@ -1,0 +1,428 @@
+#!/usr/bin/perl
+
+###############################
+## serviceconf.pl
+## by Matt Spong (spong@baked.net)
+## (c) 2001 Matt Spong and MandrakeSoft
+##
+## Text and design by Jay Beale (jay@mandrakesoft.com)
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License, version 2, under which this file is licensed, for more details.
+##
+## You should have received a copy of the GNU General Public License, version 2
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+
+use strict;
+## make sure we have Gtk.pm
+$@ = '';
+eval 'use Gtk;';
+if ($@) {
+	print STDERR "ERROR: Gtk.pm not installed.  Either run other interface (type\n'InteractiveBastille -x') or install Gtk.pm.\n";
+	print STDERR "To do the latter (in Debian), install the libgtk-perl package.\n";
+	exit 1;
+}
+use Gtk;
+use POSIX qw(tmpnam);
+
+###############################
+## Some settings
+
+## BUG
+# my $config_file = "/etc/Bastille/bastille-firewall.cfg";
+my $num_screens = 4;
+
+
+###############################
+## Globals
+
+my ($window, $ok_button, $cancel_button, $textbox, $buttons_hbox, $main_vbox);
+my $screen;
+my @widgets;
+
+###############################
+## Stuff the script will set
+
+my $security_level;    	# "Lax", "Moderate", or "Paranoia"
+my $system_type;	# "Workstation" or "Server"
+
+my %services_states;  #  which services it's running.  key == service name, val = 0 or 1
+my $security_from_args = 0;
+
+###############################
+## Text
+
+my @screens = (
+
+"Bastille Premade-Configuration Chooser
+
+This quick tool will run Bastille Linux on this machine
+using a pre-written configuration.  If you have a desire
+to learn about and personalize your system security, along with
+20-40 minutes of spare time, please press the Cancel button
+and run 'InteractiveBastille' from the shell prompt.",
+	
+"Security is often a great tradeoff for ease of use.
+Choose a security level here but be cautious - the
+higher the security level, the greater the possibility
+that you may have to troubleshoot.",
+
+"Workstations tend to be single-user multipurpose machines,
+while servers tend to have a small number of specific functions
+like Web serving, DNS, etc.
+
+Is this machine a server?
+",
+
+"Which services is this machine running?"
+
+);
+
+sub CheckArgs
+{
+	$security_level = "Lax";
+
+	foreach my $arg (@ARGV)
+	{
+		if ($arg =~ m/^\-\-securelevel\=([1-3])$/)
+		{
+			my $level = $1;
+			my @levels = qw(Lax Moderate Paranoia);
+			$security_level = $levels[$level - 1];
+			$security_from_args = 1;
+		}
+	}
+}
+
+############################
+## Subroutines
+
+sub QuitApp
+{
+	Gtk->exit (0);
+}
+
+
+sub WidgetHandler
+{
+	my ($button, $data) = @_;
+	
+	if ($button->active)
+	{
+		if ($data eq "lax")
+		{
+			$security_level = "Lax";
+		}
+		elsif ($data eq "moderate")
+		{
+			$security_level = "Moderate";
+		}
+		elsif ($data eq "paranoid")
+		{
+			$security_level = "Paranoia";
+		}
+
+		elsif ($data eq "workstation")
+		{
+			$system_type = "Workstation";
+			$ok_button->label ("Finish");
+		}
+		elsif ($data eq "server")
+		{
+
+			$system_type = "Server";
+			$ok_button->label ("Next");
+		}
+
+		if ($data =~ m/^(.*) (.*)$/)
+		{
+			$services_states{$1} = 0 if ($2 eq "off");
+			$services_states{$1} = 1 if ($2 eq "on");
+		}
+	}
+}
+
+sub InitInterface
+{
+	init Gtk;
+	set_locale Gtk;
+
+	$screen = 0;
+
+	
+	$window = new Gtk::Window ( "toplevel" );
+	$window->signal_connect ( "delete_event", \&QuitApp);
+
+	$ok_button = new Gtk::Button ("Ok");
+	$cancel_button = new Gtk::Button ("Cancel");
+
+	$cancel_button->signal_connect ("clicked", \&PrevScreen);
+
+	$ok_button->signal_connect ("clicked", \&NextScreen);
+
+	$main_vbox = new Gtk::VBox (0, 0);
+	
+	$window->add ($main_vbox);
+
+	$textbox = new Gtk::Label ("");
+	$textbox->show();
+	$main_vbox->pack_start ($textbox, 1, 1, 0);
+
+	$buttons_hbox = new Gtk::HBox (0, 0);
+
+	$main_vbox->pack_start ($buttons_hbox, 0, 0, 0);
+	
+	$buttons_hbox->pack_start ($ok_button, 1, 1, 0);
+	$buttons_hbox->pack_start ($cancel_button, 1, 1, 0);
+
+	$ok_button->show;
+	$cancel_button->show;
+	$buttons_hbox->show;
+	$main_vbox->show;
+
+	$window->set_title ("Services Configurator");
+	$window->show;
+
+	####### set some default values
+
+	$security_level = "Lax";
+	$system_type = "Workstation";
+
+
+	CheckArgs;
+}
+
+sub DoInterface
+{
+	$textbox->set_text ("");
+	$textbox->set_text ($screens[$screen]) if ($screens[$screen]);
+
+	foreach my $widget (@widgets)
+	{
+		$widget->hide;
+		$widget->destroy;
+	}
+	if ($screen == 0)
+	{
+		$cancel_button->label ("Cancel");
+		$ok_button->label ("Next");
+	}
+	elsif ($screen == 1)
+	{
+		my $button1 = new Gtk::RadioButton ("Lax Security");
+		my $button2 = new Gtk::RadioButton ("Moderate Security", $button1);
+		my $button3 = new Gtk::RadioButton ("Paranoid Security", $button1);
+
+		$main_vbox->pack_start ($button1, 1, 1, 0);
+		$main_vbox->pack_start ($button2, 1, 1, 0);
+		$main_vbox->pack_start ($button3, 1, 1, 0);
+
+		$button1->show;
+		$button2->show;
+		$button3->show;
+
+		$button1->set_state($security_level eq "Lax");
+		$button2->set_state($security_level eq "Moderate");
+		$button3->set_state($security_level eq "Paranoia");
+
+		$main_vbox->reorder_child ($buttons_hbox, 4);
+
+		push @widgets, $button1;
+		push @widgets, $button2;
+		push @widgets, $button3;
+
+		$button1->signal_connect ("clicked", \&WidgetHandler, "lax");
+		$button2->signal_connect ("clicked", \&WidgetHandler, "moderate");
+		$button3->signal_connect ("clicked", \&WidgetHandler, "paranoid");
+
+		$ok_button->label ("Next");
+		$cancel_button->label("Previous");
+	}
+	elsif ($screen == 2)
+	{
+		my $button1 = new Gtk::RadioButton ("No");
+		my $button2 = new Gtk::RadioButton ("Yes", $button1);
+
+		$main_vbox->pack_start ($button1, 1, 1, 0);
+		$main_vbox->pack_start ($button2, 1, 1, 0);
+
+		$button1->show;
+		$button2->show;
+
+		$button1->set_state ($system_type eq "Workstation");
+		$button2->set_state ($system_type eq "Server");
+
+		$main_vbox->reorder_child ($buttons_hbox, 3);
+
+		push @widgets, $button1;
+		push @widgets, $button2;
+
+		$button1->signal_connect ("clicked", \&WidgetHandler, "workstation");
+		$button2->signal_connect ("clicked", \&WidgetHandler, "server");
+
+		$ok_button->label ("Finish");
+		$ok_button->label ("Next") if ($system_type eq "Server");
+		$cancel_button->label ("Previous");
+	}
+	elsif ($screen == 3)
+	{
+		my @services = ("Web", "DNS", "Mail", "FTP", "DHCP");
+
+		foreach my $service (@services)
+		{
+			$services_states{$service} = 0;
+			my $label = new Gtk::Label ($service);
+			my $nobutton = new Gtk::RadioButton ("No");
+			my $yesbutton = new Gtk::RadioButton ("Yes", $nobutton);
+			my $hbox = new Gtk::HBox (1, 0);
+
+			$nobutton->set_state (!$services_states{$service});
+			$yesbutton->set_state ($services_states{$service});
+
+			$main_vbox->pack_start ($hbox, 1, 1, 0);
+			$hbox->pack_start ($label, 1, 1, 0);
+			$hbox->pack_start ($nobutton, 1, 1, 0);
+			$hbox->pack_start ($yesbutton, 1, 1, 0);
+
+			$label->show;
+			$nobutton->show;
+			$yesbutton->show;
+			$hbox->show;
+
+			push @widgets, $hbox;
+			push @widgets, $nobutton;
+			push @widgets, $yesbutton;
+			push @widgets, $label;
+
+
+			$nobutton->signal_connect ("clicked", \&WidgetHandler, $service . " off");
+			$yesbutton->signal_connect ("clicked", \&WidgetHandler, $service . " on");
+			
+			
+		}
+
+		$main_vbox->reorder_child ($buttons_hbox, @services + 1);	
+		$ok_button->label ("Finish");
+		$cancel_button->label ("Previous");
+	}
+}
+
+sub Finish
+{
+	if ($system_type eq "Workstation")
+	{
+		system ("/bin/cp -f /usr/share/Bastille/Workstation" . $security_level . ".config /etc/Bastille/config");
+	}
+	else
+	{
+			
+                # We have to use 'die' here because we don't have Bastille's API
+		open CONFIGFILE, "/usr/share/Bastille/Server" . $security_level . ".config"
+			or die "Can't open /usr/share/Bastille/Server" . $security_level . ".config: $!\n";
+
+		open OUTFILE, ">/etc/Bastille/config"
+			or die "Can't open /etc/Bastille/config: $!\n";
+
+
+		
+		while (my $line = <CONFIGFILE>)
+		{
+			if ($line =~ /ip\_.\_publictcp=\"(.*)\"/)
+			{
+				my $val = $1;
+				$val .= " 80 443" if ($services_states{"Web"});
+				$val .= " 25 110 143" if ($services_states{"Mail"});
+				$val .= " 21" if ($services_states{"FTP"});
+				$val .= " 53" if ($services_states{"DNS"});
+
+				$line =~ s/\".*\"/\"$val\"/;
+			}	
+			elsif ($line =~ /ip\_.\_publicudp=\"(.*)\"/)
+			{
+				my $val = $1;
+				$val .= " 53" if ($services_states{"DNS"});
+				$val .= " 67 68" if ($services_states{"DHCP"});
+
+				$line =~ s/\".*\"/\"$val\"/;
+			}
+			elsif ($line =~ /MiscellaneousDaemons\.dhcpd\=\"Y\"/)
+			{
+				$line = "MiscellaneousDaemons.dhcpd=\"N\"\n"
+					if ($services_states{"DHCP"});
+			}
+			elsif ($line =~ /Sendmail\.sendmaildaemon\=\"N\"/)
+			{
+				$line = "Sendmail.sendmaildaemon=\"Y\"\n"
+					if ($services_states{"Mail"});
+			}
+			elsif ($line =~ /Sendmail\.sendmailcron\=\"Y\"/)
+			{
+				$line = "Sendmail.sendmailcron=\"N\"\n"
+					if ($services_states{"Mail"});
+			}
+			elsif ($line =~ /DNS\.namedoff\=\"Y\"/)
+			{
+				$line = "DNS.namedoff=\"N\"\n"
+					if ($services_states{"DNS"});
+			}
+			elsif ($line =~ /Apache\.apacheoff\=\"Y\"/)
+			{
+				$line = "Apache.apacheoff=\"N\"\n"
+					if ($services_states{"Web"});
+			}
+			elsif ($line =~ /FTP\.userftp\=\"Y\"/)
+			{
+				$line = "FTP.userftp=\"N\"\n"
+					if ($services_states{"FTP"});
+			}
+			elsif ($line =~ /FTP\.anonftp\=\"Y\"/)
+			{
+				$line = "FTP.anonftp=\"N\"\n"
+					if ($services_states{"FTP"});
+			}
+
+			print OUTFILE $line;
+		}
+
+		close OUTFILE;
+		close CONFIGFILE;
+	}
+
+
+	
+	`/usr/sbin/BastilleBackEnd`;
+	Gtk->exit(0);
+}
+
+sub NextScreen
+{
+	$screen++;
+	$screen++ if ($screen == 1 and $security_from_args);
+	
+	Finish if ($screen >= $num_screens);
+	Finish if ($screen == 3 and $system_type eq "Workstation");
+	DoInterface;
+}
+
+sub PrevScreen
+{
+	$screen--;
+	$screen-- if ($screen == 1 and $security_from_args);
+	Gtk->exit(0) if ($screen < 0);
+	DoInterface;
+}
+
+
+
+############################
+## Main code
+
+
+InitInterface;
+DoInterface;
+main Gtk;
+

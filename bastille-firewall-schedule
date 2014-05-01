@@ -1,0 +1,278 @@
+#!/bin/sh
+#
+# This is actually a Perl script (see below)
+PERL=/usr/bin/perl
+#
+#	bastille-firewall-schedule
+#
+# Copyright (c) 2001-2002 Peter Watkins
+#
+# $Id: bastille-firewall-schedule,v 1.6 2005/09/13 03:47:28 fritzr Exp $
+#
+# Script to schedule lease renewal and firewall reset
+# for 'pump'-configured network interfaces (e.g. DHCP)
+#
+# This script is normally called by bastille-firewall-reset
+# (which is called by ifup-local) when the interface is first activated
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License, version 2, under which this file is licensed,
+ for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+# Test usage
+if [ -z "$1" ]; then
+	echo Need an interface name
+	exit
+fi
+
+# Make sure it looks like pump is handling that interface
+ptest1=`ps -fe | awk '$1 == "root" && $8 ~ /\/[p]ump/ {print}' | grep "$1"`
+ptest2=`ps -fe | awk '$1 == "root" && $8 ~ /\/[p]ump/ {print}' | grep -v '\-i'`
+
+if [ \( -z "${ptest1}" \) -a \( -z "${ptest2}" \) ]; then
+	# we don't see pump managing this interface (or running w/ no
+	# interface indicated); no need to schedule renewal
+	exit 0
+fi
+
+# Test to see if Perl is available
+if [ ! -x ${PERL} ]; then
+	echo "ERROR: cannot schedule DHCP renewal without Perl"
+	echo "/sbin/bastille-firewall-schedule cannot schedule orderly DHCP renewal and firewall resets without Perl which is expected to be ${PERL}" | mail -s "bastille-firewall-schedule error" root
+	exit
+fi
+
+# found Perl, let's run the actual script:
+#
+eval "exec ${PERL} -x $0 $*"
+#!perl
+
+use Time::Local;	# For making time values from pump status data
+use IPC::Open3;		# For interfacing with 'at'
+
+$PUMP = 'pump';
+$scheduleDir = '/var/state/bastille';
+$scheduleDirPerms = 00700;
+$scheduleFilenameFormat = '%s/firewall-atjob.%s';	# dir, then iface name
+$resetScript = '/sbin/bastille-firewall-reset';
+$minutesEarly = 1;	# by how many minutes we should preempt pump's renewal
+$atProgram = 'at';
+$atrmProgram = 'atrm';
+
+umask(077);
+&cleanEnvironment();	# unset most env vars, sanitize PATH
+
+# already tested above
+# if ( $ARGV[0] eq '' ) { die "Need an interface name\n"; }
+
+if (! open(PSTAT,"$PUMP --status -i $ARGV[0]|") ) {
+	die "Cannot get status\n";
+}
+
+# parse current pump interface data
+$currentIface = '';
+while ($line = <PSTAT>) {
+	chop $line;
+	if ( $line =~ /^Device (\w*?)$/ ) {
+		$currentIface = $1;
+	} elsif ( $line =~ /^\s*?(\w.*?):\s(\w.*?)$/ ) {
+		$pumpData{$currentIface}{$1} = $2;
+		#print "$currentIface($1) = \"$2\"\n";
+	}
+}
+close(PSTAT);
+
+if (! defined $pumpData{$ARGV[0]}{IP} ) {
+	print "No status information for $ARGV[0] -- device not active?\n";
+	# possible that the interface was deliberately dropped
+	# (or it may not have been activated with 'pump')
+	&unScheduleAtJob($ARGV[0]);
+	exit(1);
+}
+
+$pumpRenewTime = &getTime($pumpData{$ARGV[0]}{"Renewal time"});
+
+if ( $pumpRenewTime eq 'none' ) {
+	# apparently an open-ended lease, nothing to do
+	exit(0);
+}
+
+# we should renew the lease and reset the firewall first (preempting pump)
+$ourRenewTime = $pumpRenewTime - ($minutesEarly * 60);	# some minutes earlier
+
+# what is the soonest we can renew the lease?
+@soon = localtime(time());
+$soon[0] = 0;	# on the minute
+$soon[1] += 2;	# at least 1+ minutes from now (e.g. 12:00:15 -> 12:02:00)
+$soonestRenewTime = timelocal(@soon);
+
+# if pump would renew sooner than that, we may have abnormally short leases
+if ( $pumpRenewTime < $soonestRenewTime ) {
+	print STDERR "WARNING: possible short lease times!\n";
+}
+
+# make sure we don't schedule 'at' sooner than feasible
+if ( $ourRenewTime < $soonestRenewTime ) {
+	# reset renewal time to sane value
+	$ourRenewTime = $soonestRenewTime;
+}
+
+# remove the current at job
+&unScheduleAtJob($ARGV[0]);
+
+# schedule a new at job
+&scheduleAtJob($ARGV[0],$ourRenewTime);
+
+exit(0);
+
+sub getTime {
+	# takes a pump date string and returns a Perl
+	# time value or the phrase 'none'
+	my ($pumpDate) = @_;
+	my (%months, $value);
+	%months = ( 'Jan'=>0,'Feb'=>1,'Mar'=>2,'Apr'=>3,'May'=>4,
+	'Jun'=>5,'Jul'=>6,'Aug'=>7,'Sep'=>8,'Oct'=>9,'Nov'=>10,'Dec'=>11);
+	# $pumpDate should look like "Sun Jan 30 15:53:29 2000"
+	if ( $pumpDate =~ /^(\w{3}) (\w{3}) (..) (..):(..):(..) (.*)$/ ) {
+		$value = timelocal($6,$5,$4,$3,$months{$2},
+			(($7 < 100) ? $7 : ($7 - 1900)));
+	} else {
+		# unsupported time format or no value
+		$value = 'none';
+	}
+	return($value);
+}
+
+sub unScheduleAtJob {
+	# removes the at job for a particular interface and 
+	# unlinks the file with the at job details
+	my ($iface) = @_;
+	my ($file, $line, $atStatus, $job, $date, $time);
+	my ($thisJob, $thisDate, $thisTime);
+	my (@atStatLines);
+	$file = &getAtInfoFilename($ARGV[0]);
+	if ( ! -f $file ) {
+		# no recorded info
+		return();
+	}
+	if (!open(INFOFP, "<$file")) {
+		print STDERR "Error: unable to read \"$file\"\n";
+		return();
+	}
+	$line = <INFOFP>;
+	$line =~ s/[\r\n]//g;	# in case someone edited the file
+	close(INFOFP);
+	($job, $date, $time) = split(/\s/,$line);
+	if ( $job eq '' || $date eq '' || $time eq '' ) {
+		# weird data in the file
+		print STDERR "Error: unexpected data in \"$file\"\n";
+		unlink($file);
+		return();
+	}
+	#print "looking for job \"$job\", date \"$date\", time \"$time\"\n";
+	$atStatus = `$atProgram -l`;
+	@atStatLines = split(/\n/, $atStatus);
+	foreach $line ( @atStatLines ) {
+		# look for matching job and remove it
+		if ( $line =~ /^(\d{1,})\s*?([\d\-]*?)\s*?(\d{2}:\d{2})/ ) {
+			$thisJob = $1; $thisDate = $2; $thisTime =$3;
+			if ( $job eq $thisJob && $date eq $thisDate &&
+				$time eq $thisTime ) {
+				# found the job, remove it
+				# (this means we're killing ourselves, 
+				#  so redirect the error output)
+				`$atrmProgram $job 2>/dev/null`;
+				$rc = $?;
+				if ( $rc == 0 ) {
+					unlink($file);
+				}
+			}
+		}
+	}
+}
+
+sub scheduleAtJob {
+	# schedules appropriate tasks for a given interface at a given time
+	my ($iface, $rTime) = @_;
+	my ( @renew, $atPhrase , $key, $rc, $atqInfo, $cmd, $file);
+	@renew = localtime($ourRenewTime);
+	$renew[1] =~ s/^(.)$/0$1/;
+	$renew[2] =~ s/^(.)$/0$1/;
+	$renew[3] =~ s/^(.)$/0$1/;
+	$renew[4] += 1;	# months should be 1-12, not 0-11
+	$renew[4] =~ s/^(.)$/0$1/;
+	$renew[5] += 1900;	# four-digit year
+	# build an at-friendly date string, e.g. "15:40 2000-01-30"
+	$atPhrase = "$renew[2]:$renew[1] $renew[5]-$renew[4]-$renew[3]";
+	# what to do: 1) renew lease (before pump does!)
+	# 2) reset firewall (in case any network details change)
+	# reset will run this script to schedule next lease renewal, etc.
+ 	$cmd = "(E=1; R=0; while [ \\( \$E -ne 0 \\) -a \\( \$R -lt 5 \\) ]; do $PUMP -R -i $ARGV[0]; E=\$? ; R=`expr \$R + 1`; done ; if [ \$R -ge 5 ]; then echo \"pump DHCP renewal on $ARGV[0] failed\" | /bin/mail -s \"DHCP renewal failed at after \$R tries\" root ; fi ; export BASTILLE_FWALL_QUIET_FAIL=Y ; $resetScript $ARGV[0]) > /dev/null";
+	($rc, $atqInfo) = &atCommand(" $atPhrase", $cmd);
+	if ( $rc == 0 ) {
+		# success
+		if ( ! -d $scheduleDir ) {
+			mkdir $scheduleDir, $scheduleDirPerms;
+		}
+		$file = &getAtInfoFilename($ARGV[0]);
+		if (! open(ATINFO,">$file") ) {
+			# error!
+			print STDERR "Error: unable to record status in \"$file\"\n";
+			return();
+		}
+		print ATINFO $atqInfo;
+		close(ATINFO);
+	} else {
+		print STDERR "Error: unable to schedule lease renewal for $ARGV[0] at $atPhrase\n";
+	}
+}
+
+sub atCommand {
+	# run the at command, return the exit value and output
+	my ($cmdArgs,$stdinData) = @_;
+	my ($exitval, $atqFormat, $pid, $line, $out);
+	$pid = open3(\*WTR, \*ERR, "", "$atProgram $cmdArgs");
+	if ($? != 0) {
+		print STDERR "Error: unable to schedule at job!\n";
+		return(-1,"Unable to schedule at job");
+	}
+	if ($stdinData ne '') { 
+		print WTR $stdinData;
+	}
+	close(WTR);
+	$exitval = -2;
+	while ($line = <ERR>) { $out .= $line };
+	if ($out =~ /job\s*?(\d{1,})\s*?at\s*?(\d{4}\-\d{2}\-\d{2})\s*?(\d{2}:\d{2})/ ) {
+		$atqFormat = "$1 $2 $3";
+		$exitval = 0;
+	}
+	return ($exitval, $atqFormat);
+}
+
+sub getAtInfoFilename {
+	# return the full name of the file that should contain 
+	# information about any pending at jobs for a given interface
+	my ($iface ) = @_;
+	my ($filename);
+	$filename = sprintf($scheduleFilenameFormat,$scheduleDir,$iface);
+	return($filename);
+}
+
+sub cleanEnvironment {
+	my (%oldEnv, $key);
+	%oldEnv = %ENV;
+	undef %ENV;
+	foreach $key ( 'USER', 'HOME' ) {
+		if ( $oldEnv{$key} ne '' ) {
+			$ENV{$key} = $oldEnv{$key};
+		}
+	}
+	$ENV{PATH} = '/sbin:/bin:/usr/sbin:/usr/bin';
+}
+

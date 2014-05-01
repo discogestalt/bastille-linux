@@ -1,0 +1,101 @@
+Workstation configuration in Lax security level:
+
+No firewalling
+Disables SUID status to the news server tools and DOSEMU 
+Setup password aging -- old unused accounts will be disabled, though the owners
+		        will be warned
+Password protects single-user mode
+Apply limits to any one program/user's resource usage, to block Denial of 
+  Service attacks.
+Configure additional logging
+Deactivates the DHCP Server daemon
+Disable the SNMP daemons
+Disable the VRFY/EXPN data mining commands in Sendmail
+Deactivate DNS server
+Deactivate Apache server
+Deactivate Apache Server Side Includes (SSI)
+Set umask to 022
+Set security level to 2
+Apply file permission level 2
+Restrict "." from the PATH variable
+Deactivate telnet
+Deactivate ftp
+Activate security checks
+
+
+Workstation configuration in Moderate Security level
+
+Moderate firewalling
+Disables SUID status to dump, restore, cardctl, rsh, rlogin and rcp
+Disables SUID status to the news server tools and DOSEMU 
+Disable rsh/rlogin access to this machine
+Setup password aging -- old unused accounts will be disabled, though the owners
+		        will be warned
+Password protects single-user mode
+Apply limits to any one program/user's resource usage, to block Denial of 
+  Service attacks.
+Configure additional logging
+Deactivates the APMd daemon
+Disables NFS and Samba
+Disables GPM
+Deactivates the DHCP Server daemon
+Disable the SNMP daemons
+Deactivates Sendmail's network listening mode, so this WORKSTATION doesn't
+   serve as a mail server
+Disable the VRFY/EXPN data mining commands in Sendmail
+Deactivate DNS server
+Deactivate Apache server
+Deactivate Apache Server Side Includes (SSI)
+Set umask to 022
+Set security level to 3
+Apply file permission level 3
+Restrict "." from the PATH variable
+Deactivate telnet
+Deactivate ftp
+Disable FTP's anonymous mode capability
+Activate security checks
+Apply TMPDIR protection
+
+
+Workstation configuration in Paranoia Security level
+
+Tight firewalling
+Disables SUID status to mount, umount, ping, at usernetctl, and traceroute
+Disables SUID status to dump, restore, cardctl, rsh, rlogin and rcp
+Disables SUID status to the news server tools and DOSEMU 
+Disable rsh/rlogin access to this machine
+Restrict use to cron to root account
+Disable pcmcia startup script
+Setup password aging -- old unused accounts will be disabled, though the owners
+		        will be warned
+Password protects single-user mode
+Apply limits to any one program/user's resource usage, to block Denial of 
+  Service attacks.
+Configure additional logging
+Deactivates the APMd daemon
+Disables NFS and Samba
+Disables GPM
+Deactivates the DHCP Server daemon
+Disable the SNMP daemons
+Deactivates Sendmail's network listening mode, so this WORKSTATION doesn't
+   serve as a mail server
+Disable the VRFY/EXPN data mining commands in Sendmail
+Deactivate DNS server
+Deactivate Apache server
+Deactivate Apache Server Side Includes (SSI)
+Deactivate Apache Server follow-symbolic links behavior
+Deactivate Apache Server CGI's
+Deactivate all remaining daemons, with the exception of crond, syslog, 
+  keytable, network, gpm, xfs and pcmcia
+Set umask to 077
+Set security level to 4
+Apply file permission level 4
+Restrict "." from the PATH variable
+Deactivate telnet
+Deactivate ftp
+Disable FTP's anonymous mode capability
+Disable FTP's user mode capability
+Activate security checks
+Apply TMPDIR protection
+
+

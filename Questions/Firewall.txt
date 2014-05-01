@@ -1,0 +1,1154 @@
+FILE: Firewall.pm
+
+LABEL: ip_intro
+SHORT_EXP: "Using the packet filtering script, you will be able to do packet
+filtering/modification via the Linux kernel.  You can use this to block certain types
+of connections to or from your machine, to turn your machine into a small firewall,
+and to do Network Address Translation (also known as \"IP masquerading\"), which lets
+several machines share a single IP address.
+
+If you install the packet filtering script, it will create firewalling instructions for you.
+You will be prompted to make various choices (with suggested defaults), but you may
+need to edit it for your particular site and WILL need to individually activate it.
+
+This script supports both kernel 2.2 (ipchains) and 2.4 (iptables if available, otherwise ipchains)."
+QUESTION: "Would you like to run the packet filtering script? [N]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: End_Screen
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_detail_level_kludge
+NO_CHILD: End_Screen
+PROPER_PARENT: tmpdir
+
+LABEL: ip_detail_level_kludge
+QUESTION:
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_exp_type
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 0
+YES_CHILD: ip_exp_type
+PROPER_PARENT: ip_intro
+
+
+LABEL: ip_exp_type
+SHORT_EXP: "You will be asked to choose initial settings for the firewall script. The
+defaults are generally the minimal recommended settings. To accept the default (shown
+in brackets), press RETURN. To change a non-empty default to an empty value, enter
+some white space before pressing RETURN.
+
+Your responses should be white space delimited lists of items. IP addresses may be
+entered in plain \"dotted-quad\" notation, with or without netmasks.  For instance,
+\"10.0.0.0/8\" \"10.0.0.0/255.0.0.0\" \"10.0.0.0\" will all be read as legitimate ways
+to express the 10.*.*.* \"class A\" network space.  If you have \"unexpected\"
+networks like \"10.0.0.0/255.255.255.0\" or \"192.168.1.0/255.255.255.128\", you will
+need to specify that explicitly.
+
+Services can be entered as names (\"smtp\") or numbers (\"25\").  Be warned that any
+names must explicitly match one of those listed in /etc/services. Ranges may be
+specified with colons, e.g. \"1024:\" indicates all ports >= 1024, \"6000:6020\"
+indicates ports 6000 to 6020, inclusive.
+
+Unless you really understand networking, you should ask for more information on most
+of the options in this script."
+QUESTION:
+REQUIRE_DISTRO: LINUX DB SE TB
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_advnetwork	
+NO_CHILD: ip_advnetwork
+PROPER_PARENT: ip_intro
+
+LABEL: ip_advnetwork
+SHORT_EXP: "Do you need the advanced networking options?  If this is a standalone
+workstation or server with a single network interface (e.g. may connect to one of
+several PPP servers, but is never connected to two different networks simultaneously),
+then you do not need advanced networking options.
+
+If this is a server that deals with multiple interfaces or provides IP
+Masquerading/NAT service, then you do need the advanced networking options."
+QUESTION: "Do you need the advanced networking options?"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_dns
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: N
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_dns
+NO_CHILD: ip_b_dns
+PROPER_PARENT: ip_exp_type
+
+LABEL: ip_s_dns
+SHORT_EXP: "This controls what external servers you can use for DNS lookups. For
+regular workstations, this should contain all your name server addresses, separated by
+spaces. If you want to run a caching name server and/or run your own DNS, leave this at
+\"0.0.0.0/0\" so you can query any DNS server. If you set this to an empty value, the
+firewall script will read the current name servers from /etc/resolv.conf when it is
+run, which is the recommended configuration. This default is designed to ensure
+functionality.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+LONG_EXP: "DNS servers are used to translate names like \"example.org\" into addresses
+like \"10.1.2.3\". You need to configure DNS for many pieces of software to function
+properly. Your system administrator or Internet Service Provider should be able to
+provide you with this information. Most users should simply leave this at
+\"0.0.0.0/0\" (or make it blank) so the firewall script will be more forgiving (or do
+the right thing automatically). For instance, DHCP clients often re-write
+/etc/resolv.conf when obtaining a new lease. (This means you may want to configure
+your system to run the firewall script both before _and_ after setting up your
+DHCP-configured interface if you set this to the safest value, an empty string.)
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "DNS servers: [0.0.0.0/0]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_trustiface
+DEFAULT_ANSWER: 0.0.0.0/0
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_trustiface
+NO_CHILD:
+PROPER_PARENT: ip_advnetwork
+
+LABEL: ip_s_trustiface
+SHORT_EXP: "List the interface names of all interfaces you want to have unrestricted
+access to this machine. You should at least trust \"lo\", the \"loopback\" interface."
+LONG_EXP: "Interface names normally look like \"eth0\" for the first Ethernet card,
+\"ppp0\" for a PPP connection, etc. Any traffic coming from the interfaces listed here
+will be allowed by the kernel (though TCP Wrappers or the application itself may end
+up denying the connection attempt). Basically, you will have no kernel-level firewall
+protecting you from traffic on these interfaces, and should therefore think carefully
+before changing the default.
+
+List the interface names of all interfaces you want to have unrestricted
+access to this machine. You should at least trust \"lo\", the \"loopback\" interface."
+QUESTION: "Trusted interface names: [lo]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_publiciface
+DEFAULT_ANSWER: lo
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_publiciface
+NO_CHILD:
+PROPER_PARENT: ip_s_dns
+
+LABEL: ip_s_publiciface
+SHORT_EXP:"List names of all interfaces connected to public/untrusted networks. The
+\"+\" character is a wildcard, e.g. \"ppp+\" matches any interface name beginning with
+\"ppp\" in case you have multiple dialup profiles."
+LONG_EXP: "List names of all interfaces connected to public/untrusted networks. The
+\"+\" character is a wildcard, e.g. \"ppp+\" matches any interface name beginning with
+\"ppp\" in case you have multiple dialup profiles.
+
+Using the \"+\" suffix allows you to configure more interfaces (for
+instance, more PPP dialup entries) without having to modify the firewall script. "
+QUESTION: "Public interfaces: [eth+ ppp+ slip+]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_internaliface
+DEFAULT_ANSWER: eth+ ppp+ slip+
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_internaliface
+NO_CHILD:
+PROPER_PARENT: ip_s_trustiface
+
+LABEL: ip_s_internaliface
+SHORT_EXP: "This is for servers that will act as NAT / IP Masq firewalls between
+local, but not fully trusted, networks and public networks like the Internet. List
+names of all \"internal\" interfaces that might have full ability to use NAT / IP Masq
+to contact public networks, but only limited access to services running on this
+machine. Do not use \"+\" characters; name each interface explicitly."
+LONG_EXP: "This is for servers that will act as NAT / IP Masq firewalls between
+local, but not fully trusted, networks and public networks like the Internet. List
+names of all \"internal\" interfaces that might have full ability to use NAT / IP Masq
+to contact public networks, but only limited access to services running on this
+machine. Do not use \"+\" characters; name each interface explicitly.
+
+Normal workstations should leave this as the empty default. "
+QUESTION: "Internal interfaces: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_tcpaudit
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_tcpaudit
+NO_CHILD:
+PROPER_PARENT: ip_s_publiciface
+
+LABEL: ip_s_tcpaudit
+SHORT_EXP: "List any TCP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces."
+LONG_EXP: "List any TCP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.
+
+If you have \"syslog\" configured to log \"kern\" messages of \"info\"
+level, the kernel will automatically log connection attempts from the \"public\"
+interfaces (only the \"public\" interfaces) to these ports and/or services. This is
+useful to spot possible probes or attacks. The default setting records connection
+attempts to several services, although you may not have them installed or enabled. "
+QUESTION: "TCP services to audit: [telnet ftp imap pop3 finger sunrpc exec login
+ssh]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_udpaudit
+DEFAULT_ANSWER: telnet ftp imap pop3 finger sunrpc exec login ssh
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_udpaudit
+NO_CHILD:
+PROPER_PARENT: ip_s_internaliface
+
+LABEL: ip_s_udpaudit
+SHORT_EXP: "List any UDP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.  The default here is port
+31337, the standard port for the infamous \"Back Orifice\" trojan/remote-control app
+for Windows systems."
+LONG_EXP: "List any UDP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.  The default here is port
+31337, the standard port for the infamous \"Back Orifice\" trojan/remote-control app
+for Windows systems.
+
+While attackers probing for Back Orifice may not pose a threat to your
+Linux system, logging their attempts helps identify the \"bad guys\" "
+QUESTION: "UDP services to audit: [31337]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_icmpaudit
+DEFAULT_ANSWER: 31337
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_icmpaudit
+NO_CHILD:
+PROPER_PARENT: ip_s_tcpaudit
+
+LABEL: ip_s_icmpaudit
+SHORT_EXP: "List any ICMP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.  These should be specified
+as types, not numbers. One example is \"echo-request\" which is used by Microsoft ping
+and tracert [sic] clients."
+QUESTION: "ICMP services to audit: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_publictcp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_publictcp
+NO_CHILD:
+PROPER_PARENT: ip_s_udpaudit
+
+LABEL: ip_s_publictcp
+SHORT_EXP: "List names or port numbers on which to accept TCP connection attempts from
+the \"public\" interfaces. Typical workstations will not want to make any services
+available, though admins may want to enable something like secure shell (default port: 22) for
+remote administration. Those running caching or \"real\" DNS servers on this machine
+will want to enable domain (or port 53). If you want to make FTP available to clients
+on the \"public\" interfaces, you will want to allow the range of ports used
+for \"passive\" FTP connections."
+LONG_EXP: "List names or port numbers on which to accept TCP connection attempts from
+the \"public\" interfaces. Typical workstations will not want to make any services
+available, though admins may want to enable something like secure shell (default port: 22) for
+remote administration. Those running caching or \"real\" DNS servers on this machine
+will want to enable domain (or port 53). If you want to make FTP available to clients
+on the \"public\" interfaces, you will want to allow the range of IP addresses used
+for \"passive\" FTP connections.
+
+You will need to list the names or port numbers of any services running on
+this machine that you want hosts on the \"public\" network to access. For instance, if
+you have a local Web server you want to share, add \"80\" for the normal HTTP port.
+Not doing so means you will be able to access the service locally, but \"public\"
+hosts will not."
+QUESTION: "TCP service names or port numbers to allow on public interfaces:[ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_publicudp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_publicudp
+NO_CHILD:
+PROPER_PARENT: ip_s_icmpaudit
+
+LABEL: ip_s_publicudp
+SHORT_EXP: "List names or port numbers on which to accept UDP connection attempts from
+the \"public\" interfaces. Again, typical workstations will not want to make any
+services  available, but if you're running caching or real DNS servers, you will need
+to enable domain (port 53)."
+QUESTION: "UDP service names or port numbers to allow on public interfaces:[ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_internaltcp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_internaltcp
+NO_CHILD:
+PROPER_PARENT: ip_s_publictcp
+
+LABEL: ip_s_internaltcp
+SHORT_EXP: "List names or port numbers on which to accept TCP connection attempts from
+the \"internal\" interfaces.  Note that the \"public\" services will not be made
+available to \"internal\" hosts unless you also specify those services again here. If
+you want to make FTP available to clients on the \"internal\" interfaces, you will
+want to allow the range of IP addresses used for \"passive\" FTP connections. "
+LONG_EXP: "List names or port numbers on which to accept TCP connection attempts from
+the \"internal\" interfaces.  Note that the \"public\" services will not be made
+available to \"internal\" hosts unless you also specify those services again here. If
+you want to make FTP available to clients on the \"internal\" interfaces, you will
+want to allow the range of IP addresses used for \"passive\" FTP connections.
+
+For instance, a corporate firewall/mailserver might have \"smtp\" enabled
+on the public side to accept outside mail, and for \"internal\" interfaces it might
+allow both \"smtp\" and \"imap\" so local users can both send and get mail; in that
+case you would set this value to \"smtp imap\". This does not affect IP Masquerading's
+ability to let masq'ed users access any services on outside/Internet hosts. "
+QUESTION: "TCP service names or port numbers to allow on private interfaces: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_internaludp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_internaludp
+NO_CHILD:
+PROPER_PARENT: ip_s_publicudp
+
+LABEL: ip_s_internaludp
+SHORT_EXP: "List names or port numbers on which to accept UDP connection attempt from
+the \"internal\" interfaces. Note that the \"public\" services will not be made
+available to \"internal\" hosts unless you also specify those services again here."
+LONG_EXP: "List names or port numbers on which to accept UDP connection attempt from
+the \"internal\" interfaces. Note that the \"public\" services will not be made
+available to \"internal\" hosts unless you also specify those services again here.
+
+As with internal TCP. You do not need to enable domain service if the
+internal clients are using IP Masq to query outside DNS servers. "
+QUESTION: "UDP service names or port numbers to allow on private interfaces: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_passiveftp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_passiveftp
+NO_CHILD:
+PROPER_PARENT: ip_s_internaltcp
+
+LABEL: ip_s_passiveftp
+SHORT_EXP: "This has nothing to do with whether you are running an FTP _server_ on
+this machine; this has to do with how clients running on this machine will talk to
+_other_ machines running FTP servers reachable through the \"public\" interfaces. By
+forcing your local FTP clients to use \"passive\" mode, you will not have to be as
+cautious about blocking specific \"high\" TCP services. Set to \"Y\" to force
+\"passive\" FTP; the default \"N\" will allow you to use normal, \"active\" FTP.
+Forcing passive mode (\"Y\") is recommended, but less convenient."
+LONG_EXP: "This has nothing to do with whether you are running an FTP _server_ on
+this machine; this has to do with how clients running on this machine will talk to
+_other_ machines running FTP servers reachable through the \"public\" interfaces. By
+forcing your local FTP clients to use \"passive\" mode, you will not have to be as
+cautious about blocking specific \"high\" TCP services. Set to \"Y\" to force
+\"passive\" FTP; the default \"N\" will allow you to use normal, \"active\" FTP.
+Forcing passive mode (\"Y\") is recommended, but less convenient.
+
+Forcing passive FTP will make using some FTP clients more of a hassle, as
+you may need to manually tell them to use passive mode, but many clients such as
+Netscape Navigator have no problem with passive FTP. If you have problems with FTP,
+this is the first place to look.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "Force passive mode? [N]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_tcpblock
+NO_CHILD: ip_s_tcpblock
+PROPER_PARENT: ip_s_internaludp
+
+LABEL: ip_s_tcpblock
+SHORT_EXP: "Specify TCP services to block.  These rules take effect _after_ the TCP
+services to make public. If you allow the use of \"active\" FTP clients
+(FORCE_PASV_FTP at its default of \"0\"), you will need to be careful here, and will
+want to make sure you block all TCP services listening on high ports. If you are
+forcing \"passive\" FTP, you may ignore this setting."
+LONG_EXP: "Specify TCP services to block.  These rules take effect _after_ the TCP
+services to make public. If you allow the use of \"active\" FTP clients
+(FORCE_PASV_FTP at its default of \"0\"), you will need to be careful here, and will
+want to make sure you block all TCP services listening on high ports. If you are
+forcing \"passive\" FTP, you may ignore this setting.
+
+We have listed the services we have observed. To be more cautious, you
+should look at the output of 'lsof -i' (run as root) once the system is up and all
+services are running.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "TCP services to block: [2049 2065:2090 6000:6020 7100]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_udpblock
+DEFAULT_ANSWER: 2049 2065:2090 6000:6020 7100
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_udpblock
+NO_CHILD:
+PROPER_PARENT: ip_s_passiveftp
+
+LABEL: ip_s_udpblock
+SHORT_EXP: "Specify UDP services to block.  As with the TCP services, the UDP services
+to make public will take precedence. The high UDP services that you do not block will
+be reachable by any allowed NTP or DNS server. Sites with more such \"high UDP\"
+services, or global DNS availability (as is the default, DNS_SERVERS=\"0.0.0.0/0\"),
+will want to be sure they have all such high UDP services listed.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "UDP services to block: [2049 6770]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_icmpallowed
+DEFAULT_ANSWER: 2049 6770
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_icmpallowed
+NO_CHILD:
+PROPER_PARENT: ip_s_tcpblock
+
+LABEL: ip_s_icmpallowed
+SHORT_EXP: "Specify the ICMP allowed types.  The default suggestion allows you to
+probe other hosts with ping and traceroute. Minimally you will need to allow
+\"destination-unreachable\"."
+LONG_EXP: "Specify the ICMP allowed types.  The default suggestion allows you to
+probe other hosts with ping and traceroute. Minimally you will need to allow
+\"destination-unreachable\".
+
+\"destination-unreachable\" lets other machines' servers tell your system
+when things aren't right; don't disable this unless you really know what you're
+getting into. If you don't allow \"echo-reply\" and \"time-exceeded\", you won't be
+able to use ping and traceroute to debug issues on the \"public\" networks. "
+QUESTION: "ICMP allowed types: [destination-unreachable echo-reply time-exceeded]"
+SKIP_CHILD: ip_s_srcaddr
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: destination-unreachable echo-reply time-exceeded
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_srcaddr
+NO_CHILD:
+PROPER_PARENT: ip_s_udpblock
+
+LABEL: ip_s_srcaddr
+SHORT_EXP: "Do you want to enable source address verification? This configures the
+kernel to block traffic likely to have spoofed IP addresses. Set to \"N\" to disable.
+The default (\"Y\") is highly recommended."
+LONG_EXP: "Do you want to enable source address verification? This configures the
+kernel to block traffic likely to have spoofed IP addresses. Set to \"N\" to disable.
+The default (\"Y\") is highly recommended.
+
+This is a standard, and highly recommended, precaution. "
+QUESTION: "Enable source address verification? [Y]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_ipmasq
+NO_CHILD: ip_s_ipmasq
+PROPER_PARENT: ip_s_icmpallowed
+
+LABEL: ip_s_ipmasq
+SHORT_EXP: "If this machine will be used as an IP Masquerading / Network Address
+Translation gateway, enter the networks to be masqueraded (from trusted interfaces).
+Example: \"10.0.0.0\". If you will not be using IP Masq / NAT, leave this as the empty
+default."
+LONG_EXP: "If this machine will be used as an IP Masquerading / Network Address
+Translation gateway, enter the networks to be masqueraded (from trusted interfaces).
+Example: \"10.0.0.0\". If you will not be using IP Masq / NAT, leave this as the empty
+default.
+
+If this machine will be used as an IP Masquerading / Network Address
+Translation gateway, enter the networks to be masqueraded (from trusted interfaces).
+Example: \"10.0.0.0\". If you will not be using IP Masq / NAT, leave this as the empty
+default.
+
+Note this expects _network_ addresses (either with 0's on the end or with
+explicit netmasks), _not_ interface names. "
+QUESTION: "Masqueraded networks: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_kernelmasq
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_kernelmasq
+NO_CHILD:
+PROPER_PARENT: ip_s_srcaddr
+
+LABEL: ip_s_kernelmasq
+SHORT_EXP: "Do you want to set any kernel modules to do IP masquerading?  Special
+kernel modules are required to provide certain services via IP Masquerading. Possible
+modules include cuseeme, ftp, irc, quake, raudio, and vdolive. The script assumes each
+name should have the usual prefix, e.g. \"raudio\" will cause the script to load the
+\"ip_masq_raudio\" module."
+QUESTION: "Kernel modules to masquerade: [ftp raudio vdolive]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_rejectmethod
+DEFAULT_ANSWER: ftp raudio vdolive
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_rejectmethod
+NO_CHILD:
+PROPER_PARENT: ip_s_ipmasq
+
+LABEL: ip_s_rejectmethod
+SHORT_EXP: "You need to set how the kernel rejects blocked traffic. \"REJECT\" is
+friendly, lets the remote host know you're blocking their attempt (and can therefore
+be used to prove you're on the network). \"DENY\" is unfriendly, simply drops the
+connection attempt, leaving the remote host to wait, and probably give up after some
+time. (Note you may specify \"DENY\" or \"DROP\" and the  packet filter will
+use the appropriate keyword (DENY for kernel 2.2/ipchains, DROP for 2.4/iptables.)"
+LONG_EXP: "You need to set how the kernel rejects blocked traffic. \"REJECT\" is
+friendly, lets the remote host know you're blocking their attempt (and can therefore
+be used to prove you're on the network). \"DENY\" is unfriendly, simply drops the
+connection attempt, leaving the remote host to wait, and probably give up after some
+time.
+
+There's no definite right answer here. With DENY, your machine will be less
+visible, especially if using kernel 2.4/iptables. "
+QUESTION: "Reject method: [DENY]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_dhcpiface
+DEFAULT_ANSWER: DENY
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_dhcpiface
+NO_CHILD:
+PROPER_PARENT: ip_s_kernelmasq
+
+LABEL: ip_s_dhcpiface
+SHORT_EXP: "List the names of any interfaces this machine will need to make DHCP
+_queries_ on to configure _its own_ interfaces. For example, a cable modem user with a
+single ethernet interface might need to set this to \"eth0\".
+
+Systems that use regular PPP modem dialups may leave this blank.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "Interfaces for DHCP queries: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_ntpsrv
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_ntpsrv
+NO_CHILD:
+PROPER_PARENT: ip_s_rejectmethod
+
+LABEL: ip_s_ntpsrv
+SHORT_EXP: "If you want to queries NTP time servers to synchronize your system time,
+enter IP addresses or networks for those servers here. If you don't intend to make NTP
+queries, leave this as the empty default.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+LONG_EXP: "If you want to queries NTP time servers to synchronize your system time,
+enter IP addresses or networks for those servers here. If you don't intend to make NTP
+queries, leave this as the empty default.
+
+The same warnings about blocked UDP services and DNS servers apply here;
+the hosts and networks you list here can connect to any high UDP port not explicitly
+blocked.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "NTP servers to query: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_s_icmpout
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_s_icmpout
+NO_CHILD:
+PROPER_PARENT: ip_s_dhcpiface
+
+LABEL: ip_s_icmpout
+SHORT_EXP: "Do you want to disable any outbound ICMP types?  If you disable the types
+listed in the default, your machine will not be visible to normal traceroute probes
+from hosts on your \"public\" interfaces."
+LONG_EXP: "Do you want to disable any outbound ICMP types?  If you disable the types
+listed in the default, your machine will not be visible to normal traceroute probes
+from hosts on your \"public\" interfaces.
+
+\"destination-unreachable\" is (ab)used by the traceroute program to check
+routing to individual hosts. "
+QUESTION: "ICMP types to disallow outbound: [destination-unreachable time-exceeded]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_enable_firewall
+DEFAULT_ANSWER: destination-unreachable time-exceeded
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_enable_firewall
+NO_CHILD:
+PROPER_PARENT: ip_s_ntpsrv
+
+LABEL: ip_b_dns
+SHORT_EXP: "This controls what external servers you can use for DNS lookups. For
+regular workstations, this should contain all your name server addresses, separated by
+spaces. If you want to run a caching name server and/or run your own DNS, leave this at
+\"0.0.0.0/0\" so you can query any DNS server. If you set this to an empty value, the
+firewall script will read the current name servers from /etc/resolv.conf when it is
+run, which is the recommended configuration. This default is designed to ensure
+functionality.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+LONG_EXP: "This controls what external servers you can use for DNS lookups. For
+regular workstations, this should contain all your name server addresses, separated by
+spaces. If you want to run a caching name server and/or run your own DNS, leave this at
+\"0.0.0.0/0\" so you can query any DNS server. If you set this to an empty value, the
+firewall script will read the current name servers from /etc/resolv.conf when it is
+run, which is the recommended configuration. This default is designed to ensure
+functionality.
+
+DNS servers are used to translate names like \"example.org\" into addresses
+like \"10.1.2.3\". You need to configure DNS for many pieces of software to function
+properly. Your system administrator or Internet Service Provider should be able to
+provide you with this information. Most users should simply leave this at
+\"0.0.0.0/0\" (or make it blank) so the firewall script will be more forgiving (or do
+the right thing automatically). For instance, DHCP clients often re-write
+/etc/resolv.conf when obtaining a new lease. (This means you may want to configure
+your system to run the firewall script both before _and_ after setting up your
+DHCP-configured interface if you set this to the safest value, an empty string.)
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "DNS Servers: [0.0.0.0/0]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_trustiface
+DEFAULT_ANSWER: 0.0.0.0/0
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_trustiface
+NO_CHILD:
+PROPER_PARENT: ip_advnetwork
+
+LABEL: ip_b_trustiface
+DEFAULT_ANSWER: lo
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_publiciface
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_publiciface
+NO_CHILD:
+PROPER_PARENT: ip_b_dns
+
+LABEL: ip_b_publiciface
+SHORT_EXP:"List names of all interfaces connected to public/untrusted networks. The
+\"+\" character is a wildcard, e.g. \"ppp+\" matches any interface name beginning with
+\"ppp\" in case you have multiple dialup profiles."
+LONG_EXP: "List names of all interfaces connected to public/untrusted networks. The
+\"+\" character is a wildcard, e.g. \"ppp+\" matches any interface name beginning with
+\"ppp\" in case you have multiple dialup profiles.
+
+Using the \"+\" suffix allows you to configure more interfaces (for
+instance, more PPP dialup entries) without having to modify the firewall script. "
+QUESTION: "Public interfaces: [eth+ ppp+ slip+]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_internaliface
+DEFAULT_ANSWER: eth+ ppp+ slip+
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_internaliface
+NO_CHILD:
+PROPER_PARENT: ip_b_dns
+
+LABEL: ip_b_internaliface
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_tcpaudit
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_tcpaudit
+NO_CHILD:
+PROPER_PARENT: ip_b_publiciface
+
+LABEL: ip_b_tcpaudit
+SHORT_EXP: "List any TCP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces."
+LONG_EXP: "List any TCP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.
+
+If you have \"syslog\" configured to log \"kern\" messages of \"info\"
+level, the kernel will automatically log connection attempts from the \"public\"
+interfaces (only the \"public\" interfaces) to these ports and/or services. This is
+useful to spot possible probes or attacks. The default setting records connection
+attempts to several services, although you may not have them installed or enabled. "
+QUESTION: "TCP services to audit: [telnet ftp imap pop3 finger sunrpc exec login
+ssh]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_udpaudit
+DEFAULT_ANSWER: telnet ftp imap pop3 finger sunrpc exec login ssh
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_udpaudit
+NO_CHILD:
+PROPER_PARENT: ip_b_publiciface
+
+LABEL: ip_b_udpaudit
+SHORT_EXP: "List any UDP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.  The default here is port
+31337, the standard port for the infamous \"Back Orifice\" trojan/remote-control app
+for Windows systems."
+LONG_EXP: "List any UDP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.  The default here is port
+31337, the standard port for the infamous \"Back Orifice\" trojan/remote-control app
+for Windows systems.
+
+While attackers probing for Back Orifice may not pose a threat to your
+Linux system, logging their attempts helps identify the \"bad guys\" "
+QUESTION: "UDP services to audit: [31337]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_icmpaudit
+DEFAULT_ANSWER: 31337
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_icmpaudit
+NO_CHILD:
+PROPER_PARENT: ip_b_tcpaudit
+
+LABEL: ip_b_icmpaudit
+SHORT_EXP: "List any ICMP-based services (name or port number) that you want the kernel
+to log connection attempts from the \"public\" interfaces.  These should be specified
+as types, not numbers. One example is \"echo-request\" which is used by Microsoft ping
+and tracert [sic] clients."
+QUESTION: "ICMP services to audit: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_publictcp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_publictcp
+NO_CHILD:
+PROPER_PARENT: ip_b_udpaudit
+
+LABEL: ip_b_publictcp
+SHORT_EXP: "List names or port numbers on which to accept TCP connection attempts from
+the \"public\" interfaces. Typical workstations will not want to make any services
+available, though admins may want to enable something like secure shell (default port: 22) for
+remote administration. Those running caching or \"real\" DNS servers on this machine
+will want to enable domain (or port 53). If you want to make FTP available to clients
+on the \"public\" interfaces, you will want to allow the range of ports used
+for \"passive\" FTP connections."
+LONG_EXP: "List names or port numbers on which to accept TCP connection attempts from
+the \"public\" interfaces. Typical workstations will not want to make any services
+available, though admins may want to enable something like secure shell (default port: 22) for
+remote administration. Those running caching or \"real\" DNS servers on this machine
+will want to enable domain (or port 53). If you want to make FTP available to clients
+on the \"public\" interfaces and are using kernel 2.2/ipchains, you will want to allow the range of IP addresses used
+for \"passive\" FTP connections.
+
+You will need to list the names or port numbers of any services running on
+this machine that you want hosts on the \"public\" network to access. For instance, if
+you have a local Web server you want to share, add \"80\" for the normal HTTP port.
+Not doing so means you will be able to access the service locally, but \"public\"
+hosts will not."
+QUESTION: "TCP service names or port numbers to allow on public interfaces: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_publicudp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_publicudp
+NO_CHILD:
+PROPER_PARENT: ip_b_icmpaudit
+
+LABEL: ip_b_publicudp
+SHORT_EXP: "List names or port numbers on which to accept UDP connection attempts from
+the \"public\" interfaces. Again, typical workstations will not want to make any
+services  available, but if you're running caching or real DNS servers, you will need
+to enable domain (port 53)."
+QUESTION: "UDP service names or port numbers to allow on public interfaces: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_passiveftp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_internaltcp
+NO_CHILD:
+PROPER_PARENT: ip_b_publictcp
+
+LABEL: ip_b_internaltcp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_internaludp
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_internaludp
+NO_CHILD:
+PROPER_PARENT: ip_b_publicudp
+
+LABEL: ip_b_internaludp
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_passiveftp
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_passiveftp
+NO_CHILD:
+PROPER_PARENT: ip_b_publicudp
+
+LABEL: ip_b_passiveftp
+SHORT_EXP: "This has nothing to do with whether you are running an FTP _server_ on
+this machine; this has to do with how clients running on this machine will talk to
+_other_ machines running FTP servers reachable through the \"public\" interfaces. By
+forcing your local FTP clients to use \"passive\" mode, you will not have to be as
+cautious about blocking specific \"high\" TCP services. Set to \"Y\" to force
+\"passive\" FTP; the default \"N\" will allow you to use normal, \"active\" FTP.
+Forcing passive mode (\"Y\") is recommended, but less convenient.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+LONG_EXP: "This has nothing to do with whether you are running an FTP _server_ on
+this machine; this has to do with how clients running on this machine will talk to
+_other_ machines running FTP servers reachable through the \"public\" interfaces. By
+forcing your local FTP clients to use \"passive\" mode, you will not have to be as
+cautious about blocking specific \"high\" TCP services. Set to \"Y\" to force
+\"passive\" FTP; the default \"N\" will allow you to use normal, \"active\" FTP.
+Forcing passive mode (\"Y\") is recommended, but less convenient.
+
+Forcing passive FTP will make using some FTP clients more of a hassle, as
+you may need to manually tell them to use passive mode, but many clients such as
+Netscape Navigator have no problem with passive FTP. If you have problems with FTP,
+this is the first place to look.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "Force passive mode? [N]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_tcpblock
+NO_CHILD: ip_b_tcpblock
+PROPER_PARENT: ip_b_publicudp
+
+LABEL: ip_b_tcpblock
+SHORT_EXP: "Specify TCP services to block.  These rules take effect _after_ the TCP
+services to make public. If you allow the use of \"active\" FTP clients
+(FORCE_PASV_FTP at its default of \"0\"), you will need to be careful here, and will
+want to make sure you block all TCP services listening on high ports. If you are
+forcing \"passive\" FTP, you may ignore this setting.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+LONG_EXP: "Specify TCP services to block.  These rules take effect _after_ the TCP
+services to make public. If you allow the use of \"active\" FTP clients
+(FORCE_PASV_FTP at its default of \"0\"), you will need to be careful here, and will
+want to make sure you block all TCP services listening on high ports. If you are
+forcing \"passive\" FTP, you may ignore this setting.
+
+We have listed the services we have observed. To be more cautious, you
+should look at the output of 'lsof -i' (run as root) once the system is up and all
+services are running.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "TCP services to block: [2049 2065:2090 6000:6020 7100]"
+DEFAULT_ANSWER: 2049 2065:2090 6000:6020 7100
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_udpblock
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_udpblock
+NO_CHILD:
+PROPER_PARENT: ip_b_passiveftp
+
+LABEL: ip_b_udpblock
+SHORT_EXP: "Specify UDP services to block.  As with the TCP services, the UDP services
+to make public will take precedence. The high UDP services that you do not block will
+be reachable by any allowed NTP or DNS server. Sites with more such \"high UDP\"
+services, or global DNS availability (as is the default, DNS_SERVERS=\"0.0.0.0/0\"),
+will want to be sure they have all such high UDP services listed.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "UDP services to block: [2049 6770]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_icmpallowed
+DEFAULT_ANSWER: 2049 6770
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_icmpallowed
+NO_CHILD:
+PROPER_PARENT: ip_b_tcpblock
+
+LABEL: ip_b_icmpallowed
+SHORT_EXP: "Specify the ICMP allowed types.  The default suggestion allows you to
+probe other hosts with ping and traceroute. Minimally you will need to allow
+\"destination-unreachable\"."
+LONG_EXP: "Specify the ICMP allowed types.  The default suggestion allows you to
+probe other hosts with ping and traceroute. Minimally you will need to allow
+\"destination-unreachable\".
+
+\"destination-unreachable\" lets other machines' servers tell your system
+when things aren't right; don't disable this unless you really know what you're
+getting into. If you don't allow \"echo-reply\" and \"time-exceeded\", you won't be
+able to use ping and traceroute to debug issues on the \"public\" networks. "
+QUESTION: "ICMP allowed types: [destination-unreachable echo-reply time-exceeded]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_srcaddr
+DEFAULT_ANSWER: destination-unreachable echo-reply time-exceeded
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_srcaddr
+NO_CHILD:
+PROPER_PARENT: ip_b_udpblock
+
+LABEL: ip_b_srcaddr
+SHORT_EXP: "Do you want to enable source address verification? This configures the
+kernel to block traffic likely to have spoofed IP addresses. Set to \"N\" to disable.
+The default (\"Y\") is highly recommended."
+LONG_EXP: "Do you want to enable source address verification? This configures the
+kernel to block traffic likely to have spoofed IP addresses. Set to \"N\" to disable.
+The default (\"Y\") is highly recommended.
+
+This is a standard, and highly recommended, precaution. "
+QUESTION: "Enable source address verification? [Y]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_ipmasq
+NO_CHILD: ip_b_ipmasq
+PROPER_PARENT: ip_b_icmpallowed
+
+LABEL: ip_b_ipmasq
+DEFAULT_ANSWER:
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_kernelmasq
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_kernelmasq
+NO_CHILD:
+PROPER_PARENT: ip_b_srcaddr
+
+LABEL: ip_b_kernelmasq
+DEFAULT_ANSWER: ftp raudio vdolive
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_rejectmethod
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_rejectmethod
+NO_CHILD:
+PROPER_PARENT: ip_b_srcaddr
+
+LABEL: ip_b_rejectmethod
+SHORT_EXP: "You need to set how the kernel rejects blocked traffic. \"REJECT\" is
+friendly, lets the remote host know you're blocking their attempt (and can therefore
+be used to prove you're on the network). \"DENY\" is unfriendly, simply drops the
+connection attempt, leaving the remote host to wait, and probably give up after some
+time."
+LONG_EXP: "You need to set how the kernel rejects blocked traffic. \"REJECT\" is
+friendly, lets the remote host know you're blocking their attempt (and can therefore
+be used to prove you're on the network). \"DENY\" is unfriendly, simply drops the
+connection attempt, leaving the remote host to wait, and probably give up after some
+time.
+
+There's no definite right answer here. You will probably not be
+_completely_ invisible, even if you choose \"DENY\", but with \"DENY\" and _no_ public
+services, you will not be visible to casual probes. "
+QUESTION: "Reject method: [DENY]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_dhcpiface
+DEFAULT_ANSWER: DENY
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_dhcpiface
+NO_CHILD:
+PROPER_PARENT: ip_b_srcaddr
+
+LABEL: ip_b_dhcpiface
+SHORT_EXP: "List the names of any interfaces this machine will need to make DHCP
+_queries_ on to configure _its own_ interfaces. For example, a cable modem user with a
+single ethernet interface might need to set this to \"eth0\".
+
+Systems that use regular PPP modem dialups may leave this blank.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "Interfaces for DHCP queries: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_ntpsrv
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_ntpsrv
+NO_CHILD:
+PROPER_PARENT: ip_b_rejectmethod
+
+LABEL: ip_b_ntpsrv
+SHORT_EXP: "If you want to queries NTP time servers to synchronize your system time,
+enter IP addresses or networks for those servers here. If you don't intend to make NTP
+queries, leave this as the empty default.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+LONG_EXP: "If you want to queries NTP time servers to synchronize your system time,
+enter IP addresses or networks for those servers here. If you don't intend to make NTP
+queries, leave this as the empty default.
+
+The same warnings about blocked UDP services and DNS servers apply here;
+the hosts and networks you list here can connect to any high UDP port not explicitly
+blocked.
+
+What you answer is important if you use kernel 2.2/ipchains, but makes no
+difference if you use kernel 2.4 and iptables."
+QUESTION: "NTP servers to query: [ ]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_b_icmpout
+DEFAULT_ANSWER:
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_b_icmpout
+NO_CHILD:
+PROPER_PARENT: ip_b_dhcpiface
+
+LABEL: ip_b_icmpout
+SHORT_EXP: "Do you want to disable any outbound ICMP types?  If you disable the types
+listed in the default, your machine will not be visible to normal traceroute probes
+from hosts on your \"public\" interfaces."
+LONG_EXP: "Do you want to disable any outbound ICMP types?  If you disable the types
+listed in the default, your machine will not be visible to normal traceroute probes
+from hosts on your \"public\" interfaces.
+
+\"destination-unreachable\" is (ab)used by the traceroute program to check
+routing to individual hosts. "
+QUESTION: "ICMP types to disallow outbound: [destination-unreachable time-exceeded]"
+REQUIRE_DISTRO: LINUX DB SE TB
+SKIP_CHILD: ip_enable_firewall
+DEFAULT_ANSWER: destination-unreachable time-exceeded
+CONFIRM_TEXT: " \nY"
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_enable_firewall
+NO_CHILD:
+PROPER_PARENT: ip_b_ntpsrv
+
+LABEL: ip_enable_firewall
+SHORT_EXP: "The firewall is controlled by /etc/rc.d/init.d/bastille-firewall or
+by /etc/init.d/bastille-firewall (depending on your distro).  The configuration 
+file is /etc/Bastille/bastille-firewall.cfg, which you may modify.
+After it has been installed, you can then test the firewall by using
+      /etc/rc.d/init.d/bastille-firewall start
+      or
+      service bastille-firewall start
+and (to remove all firewall rules)
+      /etc/rc.d/init.d/bastille-firewall stop
+      or
+      service bastille-firewall stop
+
+ Once you have a configuration that will work on your system, you can make it
+ run at every normal boot-up by typing
+     /sbin/chkconfig --add bastille-firewall
+     /sbin/chkconfig bastille-firewall reset
+
+If you are confident of your selections, Bastille can start the firewall
+and configure it to run at boot time for you.
+
+** It is strongly recommended that you answer N if you are not logged in to
+   the system's console, as your network access my be blocked by the firewall. **"
+QUESTION: "Should Bastille run the firewall and enable it at boot time? [N]"
+REQUIRE_DISTRO: LINUX DB SE TB
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+DEFAULT_ANSWER: N
+YES_CHILD: psad_config
+NO_CHILD: psad_config
+PROPER_PARENT: ip_advnetwork

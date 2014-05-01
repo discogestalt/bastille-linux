@@ -1,0 +1,21 @@
+FILE: TMPDIR.pm
+
+LABEL: tmpdir
+SHORT_EXP: "Many programs use the /tmp directory in ways that are dangerous
+on multi-user systems. Many of those programs will use an alternate directory
+if one is specified with the TMPDIR or TMP environment variables. We can
+install scripts that will be run when users log in that safely create
+suitable temporary directories and set the TMPDIR and TMP environment
+variables. This depends on your system supporting /etc/profile.d scripts."
+QUESTION: "Would you like to install TMPDIR/TMP scripts? [N]"
+QUESTION_AUDIT: "Are TMPDIR/TMP scripts installed?"
+REQUIRE_DISTRO: LINUX SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ip_intro
+NO_CHILD: ip_intro
+PROPER_PARENT: install_ipfilter
+

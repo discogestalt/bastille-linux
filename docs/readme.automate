@@ -1,0 +1,29 @@
+The Bastille Hardening program has some simple, yet effective, automation
+and configuration file re-usability.  The latter provides good scalability,
+especially for creating a lab full of identical machines.
+
+In essence, all you need to do is run bastille interactively once.  This 
+creates a configuration file.  On Linux, this is /etc/Bastille/ config 
+whereas on HP-UX, this is /etc/opt/sec_mgmt/bastille/config.   To reuse 
+this file on other machines, install Bastille on each, then copy the 
+master config file into this same directory.  Run "bastille -b" on each 
+machine to make the changes take effect.  
+
+You could create 500 identical lab machines through this method. [1]  
+On machines that are have greater variance in their original O/S install 
+options, this process may result in errors indicating that the certain 
+questions have not been answered.  This occurs when a question that 
+pertains to one of these machines wasn't asked when in the original 
+interactive bastille session run.  The reason this happens is that 
+bastille skips questions that don't apply to the machine it's run on, and 
+the machines aren't as identical as you thought they were.  In this case, 
+you can either run bastille interactively on the machines with errors, or 
+you can hand-edit the config file to contain questions to all possible 
+questions.  In future versions of bastille, we hope to add a multi-host 
+feature which can detect all possible questions before asking the 
+questions.  (any volunteers?) 
+
+[1]  Under the current implementation, this does pose some danger that can be 
+     avoided.  This file must be safely guarded, as it may contain
+     passwords, based on options you choose.
+     

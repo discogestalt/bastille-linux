@@ -1,0 +1,31 @@
+This version of Bastille-1.1.1 can run with one of two user interfaces.
+By default, when you run InteractiveBastille.pl, you get the original
+Curses interface.  If you add a "-x" switch to the command, you get an
+X interface implemented with perl/Tk.  For consistency, there is also
+a "-c" switch to force the Curses interface.
+
+The Tk interface behaves nearly identically to the Curses interface,
+but is operated mostly with the mouse instead of the tab and return
+keys.  You have to take your hand off the mouse to type in a text
+answer, but yes/no questions use Tk Checkbuttons.  There is a
+clickable list of modules along the left edge of the window to show
+where you are and to allow jumping to any module.  At the end,
+the Tk version offers to run the Backend.pl script for you.
+
+Note that running an X server on a firewall is a really bad thing
+to do.  X is a large pile of mostly-unaudited code.  If you
+use the Tk interface to Bastille, do it over ssh from a safe
+machine.
+
+It would be fairly trivial to plug a different interface into this
+version of InteractiveBastille.pl.  Each user interface module has
+its own Ask function and a do_Bastille function that gets called by
+InteractiveBastille.pl.  Adding a new interface would involve
+writing the code to implement the interface, writing a version of
+&Ask to navigate the Questions database, and tweaking
+InteractiveBastille.pl so that the new interface can get loaded.
+Not quite that simple, but you get the idea.  :-)
+
+Paul Allen
+allenp@nwlink.com
+1/27/01

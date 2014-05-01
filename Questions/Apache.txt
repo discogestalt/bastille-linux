@@ -1,0 +1,290 @@
+FILE: Apache.pm
+
+LABEL: deactivate_hpws_apache
+QUESTION: "Would you like to deactivate the HP Web Services Apache Web Server?"
+QUESTION_AUDIT: "Is the HP Web Services Apache Web Server deactivated?"
+SHORT_EXP: "If you do not plan to use this system as a web server, then
+it is recommended that you deactivate your Apache web server.  Programs
+that require an Apache server installed but do not bind to port 80 will still
+be able start their own instances of the web server.  If you do not plan to
+use your Apache server immediately, then you should deactivate it until
+you need it.  Minimalism is a critical part of good site security.
+NOTE: This will not turn off copies of Apache or other web servers if
+they are supplied with individual products, nor does it disable APACHE_SSL."
+REQUIRE_DISTRO: HP-UX
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^Y$|^N$"
+YES_CHILD: apacheoff
+NO_CHILD: apacheoff
+PROPER_PARENT: namedoff
+
+LABEL: apacheoff
+SHORT_EXP: "Will you be using the Apache web server immediately? Again,
+minimalism is a critical part of a good site security.  If you don't
+need to run a web server, at least not right now, you should deactivate it.
+You can restart the web server later by typing:
+
+      /sbin/chkconfig httpd on
+"
+QUESTION: "Would you like to deactivate the Apache web server? [Y]"
+QUESTION_AUDIT: "Is the Apache Web server deactivated?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP: "Even though you've deactivated the Apache web server, there are
+still a few more questions related to it.  It's good to take the precautions in
+the next steps even if you've turned off the web server, since it might get
+turned on again later."
+NO_EXP:
+YES_CHILD: bindapachelocal
+NO_CHILD: bindapachelocal
+PROPER_PARENT: deactivate_hpws_apache
+
+LABEL: bindapachelocal
+SHORT_EXP: "When the web server is on, you may want to have it listen on
+only the local interface, or on the local interface and a particular network
+interface (like an ethernet card that's only connected to a bank of local
+computers, none of which are attached to the Internet).  This is a
+particularly good option for web developers."
+LONG_EXP: "If you bind the apache web server to the local interface, so that
+it isn't accessible to other machines, it can still serve up pages to
+browsers/web clients on this machine. This is ideal for many web
+developers, who don't need a worldwide accessible web server, but would
+like to edit a web site locally before uploading to another server.  To
+access the server, you would simply use, as a URL in your browser:
+
+        http://localhost/
+and
+        http://localhost/some_page.html
+
+Even if you fully deactivated the web server in the previous step, this
+option still makes sense: if you or someone else turns the server back on,
+it doesn't represent as great a risk if it isn't set to allow
+connections from the entire Internet."
+QUESTION: "Would you like to bind the Web server to listen only to the localhost? [N]"
+QUESTION_AUDIT: "Is the Web server bound to listen only to the localhost?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: generalweb
+NO_CHILD: bindapachenic
+SKIP_CHILD: generalweb
+PROPER_PARENT: apacheoff
+
+LABEL: bindapachenic
+SHORT_EXP: "We can bind the web server to a specific IP address on your
+machine.  On a machine with multiple network interfaces (like ppp and ethernet)
+this has the effect of letting you only allow your internal LAN access to your
+web server.  This is highly recommended if you're building an internal-only
+web server."
+QUESTION: "Would you like to bind the web server to a particular interface? [N]"
+QUESTION_AUDIT: "Is the Web server bound to a particular interface?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: bindapacheaddress
+NO_CHILD: generalweb
+SKIP_CHILD: generalweb
+PROPER_PARENT: bindapachelocal
+
+LABEL: bindapacheaddress
+SHORT_EXP: "Please enter in the IP address for apache to listen to.  Include the
+port it should listen on--the default port is port 80.  For example:
+
+     192.168.1.1:80
+ or
+     10.0.0.1:8080"
+QUESTION: "Address to bind the web server to? [127.0.0.1]"
+REQUIRE_DISTRO: LINUX DB SE TB
+YN_TOGGLE: 0
+DEFAULT_ANSWER: 127.0.0.1
+YES_CHILD: generalweb
+NO_CHILD: generalweb
+PROPER_PARENT: bindapachenic
+
+LABEL: generalweb
+SHORT_EXP:" There are a few other changes that we recommend you make to
+the web server's configuration.  There are very few intrinsic security flaws
+in the Apache web server, but there are two important ones:
+
+  As with all web servers, it is generally required to send and receive
+  information to and from anyone on the Internet.
+
+  In many environments, the people telling the server how to behave are
+  not knowledgeable system administrators by trade.  Before you discount
+  this fact, take account of the wide proliferation of configurations
+  under which any user on the system can instruct the server to execute
+  arbitrary code for anyone who comes to the site, via CGI scripts."
+QUESTION:
+REQUIRE_DISTRO: LINUX DB SE TB
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: symlink
+NO_CHILD: symlink
+PROPER_PARENT: bindapachelocal
+
+LABEL: symlink
+SHORT_EXP: "In general, you should try to limit which information on the web
+server's host can be accessed by the myriad of people who may connect to
+the web server.
+
+We will prevent the web server from following symbolic links.  Apache runs
+as user \"nobody\", and so it can potentially change/read any world
+writeable/readable file on the system.  If we don't deactivate this option,
+a user could potentially allow a web site visitor to view files not in the
+web page directories.  Deactivating \"follow symbolic links\" will help
+prevent this.  Further, deactivation can lessen the probability that a future
+vulnerability in Apache could be exploited to alter world writeable files
+on the system."
+QUESTION: "Would you like to deactivate the following of symbolic links? [Y]"
+QUESTION_AUDIT: "Is the following of symbolic links deactivated?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: ssi
+NO_CHILD: ssi
+PROPER_PARENT: generalweb
+
+LABEL: ssi
+SHORT_EXP: "You might also want to deactivate server-side includes. If you
+don't know what they are, you should probably turn them off until you do.  In
+essence, they are another way for a web server to execute code to modify
+web pages, but they represent a security risk you may not want to take until
+you better understand the Apache web server."
+QUESTION: "Would you like to deactivate server-side includes? [Y]"
+QUESTION_AUDIT: "Are server-side includes deactivated?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: cgi
+NO_CHILD: cgi
+PROPER_PARENT: symlink
+
+LABEL: cgi
+SHORT_EXP: "As mentioned earlier, one of the few inherent weaknesses in Apache,
+true of web servers in general, is that CGI scripts allow any user on the
+system to allow anyone who can access the web site (which is usually the
+entire Internet) to run programs on the web server's host.  This has inherent
+problems, but may be required at your site.  We recommend disabling
+CGI script execution for now, while you take the time to read more about the
+dangers and install some kind of protection."
+LONG_EXP: "One security precaution that you should look into is using a
+wrapper program that only allows certain users to execute CGI
+programs.  You may even have your site's security administrator audit each
+script before allowing it onto the system.  CGI scripts are not inherently
+dangerous, but they need to be very carefully controlled by people who
+understand the dangers."
+QUESTION: "Would you like to disable CGI scripts, at least for now? [Y]"
+QUESTION_AUDIT: "Are CGI scripts disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: apacheindex
+NO_CHILD: apacheindex
+PROPER_PARENT: ssi
+
+LABEL: apacheindex
+SHORT_EXP: "Apache, by default, is configured to generate \"index\" files for
+any web directories that don't have them.  These index files basically create
+a link to every file in the directory, whether one was intended or not.  This
+step isn't necessary, but may be helpful."
+LONG_EXP: "This can be mildly problematic, for example, when a user places a
+sensitive data file that's required by a CGI script in a web directory.  The
+data file must be readable by user \"nobody\", which generally means it must
+be world-readable.  Without the automatically generated index file, a
+web site visitor couldn't ordinarily read the data file unless they could
+guess its name.  Still, this example is weak, as it illustrates the
+flawed, yet all-too-common, principle of \"security through obscurity.\"
+No examples were obvious to the authors of this script that didn't rely on
+breaking the most obvious rule of web site creation, \"don't put any sensitive
+files in a web directory with world readable permissions!\" "
+QUESTION: "Would you like to disable indexes? [N]"
+QUESTION_AUDIT: "Are indexes disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: chrootapache
+NO_CHILD: chrootapache
+PROPER_PARENT: cgi
+
+LABEL: chrootapache
+SHORT_EXP: "The HP Web Services versions of the Apache web server for
+HP-UX, available free for download at \"www.hp.com/go/softwaredepot\", have a
+chroot script built into the distribution.  This script makes a copy
+of Apache and related binaries and libraries and places them inside of
+a chroot jail.  This allows Apache to run with limited file system
+access.  If you are not currently running the Apache web server then
+answer no to this question.
+
+NOTE:  If a security vulnerability is found in one of the files that has been
+placed inside of the \"chroot jail\" then that file must be manually patched
+by copying the fixed file(s) into the jail.
+
+NOTE: This chroot script was written to produce a fully functional web server
+inside of a chroot'ed environment.  For additional security remove unneeded
+libraries and compilers as they may not all be used by your Apache server.
+"
+LONG_EXP: "The HP Web Services versions of the Apache web server for
+HP-UX, available free for download at \"www.hp.com/go/softwaredepot\", have a
+chroot script built into the distribution.  This script makes a copy
+of Apache and related binaries and libraries and places them inside of
+a chroot jail.  This allows Apache to run with limited file system
+access.  If you are not currently running the Apache web server then
+answer no to this question.
+
+The apache server, httpd, is given access to several compilers and system
+libraries so that it can process cgi's, login attempts, etc... One way to
+lessen the risk presented by this special status is to lock the daemon
+(httpd) into a \"chroot jail.\"  In this case, the daemon has access to
+only a small segment of the file system, a directory created specifically for
+the purpose of giving the daemon access to only the files it needs.
+
+The adjective \"chroot'ed\" is derived from \"change root\", since
+Bastille sets the daemon's root directory ( / ) to some child node in the
+directory tree.  Note, for experts: a root process can break out of a
+chroot jail, but this is still an effective deterrent, especially since
+Bastille will limit the number of common root attack vectors within the jail.
+
+NOTE:  If a security vulnerability is found in one of the files that has been
+placed inside of the \"chroot jail\" then that file must be manually patched
+by copying the fixed file(s) into the jail.
+
+NOTE: This chroot script was written to provide for a fully functional web
+server inside of a chroot'ed environment.  For additional security remove
+unneeded libraries and compilers as they may not all be used by your
+Apache server.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Would you like to chroot your HP Web Services Apache Server? [N]"
+QUESTION_AUDIT: "Is the HP Web Services Apache Server running in a chroot jail?"
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: printing
+NO_CHILD: printing
+PROPER_PARENT: apacheindex

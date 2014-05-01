@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Description</key>
+	<string>Firewall and NAT</string>
+	<key>Messages</key>
+	<dict>
+		<key>start</key>
+		<string>Activating Firewall</string>
+		<key>stop</key>
+		<string>Clearing Firewall</string>
+	</dict>
+	<key>OrderPreferences</key>
+	<string>Late</string>
+	<key>Provides</key>
+	<array>
+		<string>Firewall</string>
+	</array>
+	<key>Requires</key>
+	<array>
+		<string>Resolver</string>
+	</array>
+</dict>
+</plist>

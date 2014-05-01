@@ -1,0 +1,239 @@
+FILE: HP_UX.pm
+
+LABEL: stack_execute
+SHORT_EXP: "A common way to gain privileged access is to provide some type
+of out-of-bounds input that is not checked by a program.  This input can be
+used to overflow the stack in a way that leaves some cleverly written
+instructions stored in a place that will be executed by the program.  The
+HP-UX kernel has the ability to disallow execution of commands from the
+stack.  This will contain many of these types of attacks, making them
+ineffective.
+
+On HP-UX versions prior to 11.22, changing the kernel parameter
+\"executable_stack\" requires Bastille to recompile the kernel.
+Ensure that the current running kernel is /stand/vmunix.  A backup of the old
+kernel will be placed in the /stand directory.
+If you answer yes to this question on HP-UX 11.11 or HP-UX 11.22, you must reboot your
+system for this change to take effect.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION on HP-UX 11.11 and HP-UX 11.22,
+see TODO list for details)"
+LONG_EXP: "A common way to gain privileged access is to provide some type
+of out-of-bounds input that is not checked by a program.  This input can be
+used to overflow the stack in a way that leaves some cleverly written
+instructions stored in a place that will be executed by the program.  The
+HP-UX kernel has the ability to disallow execution of commands from the
+stack.  This will contain many of these types of attacks, making them
+ineffective.  Because this is done at the kernel level, it is
+independent of any application which may have a vulnerability of this type.
+Note that this will also break some applications (Example: Java 1.2 programs
+will fail if using JDK/JRE 1.2.2 versions older than 1.2.2.06) which
+were designed to execute code off of the stack.  However, you can run
+\"chatr +es <executable_file>\" to override this for individual
+programs if they break.
+
+On HP-UX versions prior to 11.22, changing the kernel parameter
+\"executable_stack\" requires Bastille to recompile the kernel.
+Ensure that the current running kernel is /stand/vmunix.  A backup of the old
+kernel will be placed in /stand/vmunix.prev and /stand/dlkm.vmunix.prev.
+If you answer yes to this question on HP-UX 11.11, you must reboot your
+system for this change to take effect.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION on HP-UX 11.11,
+see TODO list for details)"
+QUESTION:  "Would you like to enable kernel-based stack-execute protection?"
+QUESTION_AUDIT: "Is kernel-based stack-execute protection enabled?"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: restrict_swacls
+NO_CHILD: restrict_swacls
+PROPER_PARENT: ftpusers
+
+LABEL: restrict_swacls
+SHORT_EXP:  "The swagentd daemon allows for remote access to list and
+install software on your system.  This is a great feature for remote
+administration.  Security Patch Check can use this to query
+remote machines.  Unfortunately, it can also be a security risk since
+it makes patch and other critical system information available
+to anyone inside that system's firewall.  For that reason, we
+recommend that you disallow swagentd's default, remote read access."
+QUESTION: "Would you like to restrict remote access to swlist?"
+QUESTION_AUDIT: "Is remote access to swlist restricted?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+YES_CHILD: ndd
+NO_CHILD:  ndd
+PROPER_PARENT: stack_execute
+
+LABEL: ndd
+SHORT_EXP: "ndd is a utility for getting and setting network device parameters. 
+Would you like Bastille to change the network settings to improve security?
+
+Note: If you already have some non-default, non-Bastille ndd settings in effect, Bastille
+will make no change to your nddconf file.  Instead, you will need to merge the
+recommended settings, which will appear in the TODO list, manually with
+your current settings.
+
+(MANUAL ACTION MAY BE REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+LONG_EXP: "ndd is a utility for getting and setting network device parameters.
+
+The following is a list of ndd changes Bastille will set:
+
+
+arp_cleanup_interval                    60000
+ip_forward_directed_broadcasts          0
+ip_forward_src_routed			0
+ip_forwarding				0
+ip_ire_gw_probe				0
+ip_pmtu_strategy			1
+*ip_respond_to_echo_broadcast           0
+*ip_respond_to_timestamp                0
+*ip_respond_to_timestamp_broadcast      0
+ip_send_redirects			0
+ip_send_source_quench			0
+tcp_conn_request_max			4096
+tcp_syn_rcvd_max			4096
+
+
+For more information on each of these parameters, run
+
+ndd -h
+
+Note: If you already have some non-default, non-Bastille settings in effect, you will need to
+merge the settings manually, and a reminder will be added to your TODO list.
+
+(MANUAL ACTION MAY BE REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Would you like Bastille to make the suggested ndd changes?"
+QUESTION_AUDIT: "Are the Bastille default ndd changes in place?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+YES_CHILD: screensaver_timeout
+NO_CHILD: screensaver_timeout
+PROPER_PARENT: restrict_swacls
+
+LABEL: screensaver_timeout
+SHORT_EXP: "The GUI login screen-saver timeout varies from 10 to 30 minutes
+depending on the HP-UX version.  This item ensures the value is set at a
+consistent 10 minutes.  Setting a short timeout ensures that extended absences
+don't leave a console open unnecessarily long."
+QUESTION: "Would you like to set the GUI screen-saver timeout to 10 minutes? [Y]"
+QUESTION_AUDIT: "Is the screen-saver timeout set explicitly to 10 minutes?"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+DEFAULT_ANSWER: Y
+YES_CHILD: gui_banner
+NO_CHILD: gui_banner
+SKIP_CHILD: gui_banner
+PROPER_PARENT: tcp_isn
+
+LABEL: gui_banner
+SHORT_EXP: "Setting a GUI login banner \"puts users on notice\" that they
+may use the system, but if they do so, they are subject to local policy and
+monitoring.  It also serves as notification that the system is not for public use.
+This can help eliminate the claim of \"I thought anyone could use it.\" "
+QUESTION: "Would you like to set up a login banner for graphical login?"
+QUESTION_AUDIT: "Is there a login banner for graphical login?"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+DEFAULT_ANSWER: Y
+YES_CHILD: tcp_isn
+NO_CHILD: tcp_isn
+SKIP_CHILD: tcp_isn
+PROPER_PARENT: screensaver_timeout
+
+LABEL: tcp_isn
+SHORT_EXP: "One property that makes TCP traffic difficult to spoof _off network_
+is the use of random sequence numbers.  By setting the TCP stack to use
+RFC 1948-compliant sequence numbers, you raise the difficulty level for a
+successful off-network attack.  Note this setting does not prevent a
+\"man in the middle\" style attack where the attacker has access to a network
+that is along the routing path between two communicating nodes.  TCP does not
+offer protections for this case without adding additional layers like IPSec."
+QUESTION: "Would you like Bastille to make TCP ISN RFC 1948 compliant?"
+QUESTION_AUDIT: "Is the TCP ISN algorithm set to RFC 1948 compliant?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+YES_CHILD: scan_ports
+NO_CHILD: scan_ports
+PROPER_PARENT: gui_banner
+
+LABEL: scan_ports
+SHORT_EXP:  "One of the final steps in lock-down is to verify that only the
+services you need are still running.  Several tools exist to do this,
+including \"netstat\" which is included with HP-UX, and \"lsof\" (LiSt Open
+Files), which is a free downloadable tool that can give you a lot of good
+information about all the processes running on your system.  If there are
+processes running that you don't recognize, you might take this as an
+opportunity to do some research and learn about them.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION:  "Would you like instructions in your TODO list on how to run a port scan?"
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: other_tools
+NO_CHILD: other_tools
+SKIP_CHILD: other_tools
+PROPER_PARENT: gui_banner
+
+LABEL: other_tools
+SHORT_EXP: "Although Bastille can help you configure a lot of the security
+relevant features of your operating system, it is not a substitute for a
+complete security solution.  Such a solution includes properly configured
+firewalls, network topologies, intrusion detection, policies, and user
+education.  Hewlett Packard has tools and resources to help with many
+aspects of security."
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: N
+QUESTION: "Would you like information about other security tools that HP has to offer?"
+YES_CHILD: mail_config
+NO_CHILD: mail_config
+SKIP_CHILD: mail_config
+PROPER_PARENT: scan_ports
+
+LABEL: mail_config
+SHORT_EXP: "The HP-UX Bastille development team would like to know how you
+are using Bastille.  Based on how you answered these questions, HP can meet
+your needs better.  You can help by sending your configuration and
+TODO files back to HP.  Answering \"yes\" to this question will do
+that for you automatically.  If you feel that your hostname or your security
+configuration is in any way confidential, then you should answer
+\"no\" to this question, since the information will be sent
+unencrypted over the public Internet.  Also, if outbound mail is
+unable to reach the Internet from this machine, you should answer \"no.\"
+
+If you have suggestions for improvements, new questions, code, and/or tests,
+you can discuss these on the Bastille Linux discussion list.  You can
+subscribe at:
+
+http://lists.sourceforge.net/mailman/listinfo/bastille-linux-discuss
+
+You can also provide feedback concerning the HP-UX version of Bastille
+directly to the IT Resource Center at http://itrc.hp.com, using either
+the \"System Administration\" or \"Security\" forum.  Please do send comments,
+even if it's just to say you like the tool.  We want to hear from you."
+QUESTION: "Are you willing to mail your configuration and TODO list to HP?"
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: configure_ipfilter
+NO_CHILD: configure_ipfilter
+PROPER_PARENT: other_tools

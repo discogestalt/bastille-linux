@@ -1,0 +1,43 @@
+- No undo logs are getting written.
+
+- The errors and actions taken are not presented while running
+InteractiveBastille so the user does not know if actions have been
+correctly taken (needs to check /var/log/Bastille)
+Suggestion: make BackEnd write to pipe Action&ErrorLogs when run
+with InteractiveBastille and let InteractiveBastille show progress to
+user
+HALF FIX: Added -v option to API so that errors are printed
+on stdout using GLOBAL_VERBOSE
+
+- No verbosity levels are set, logs sometimes are too verbose and
+cannot be trimed down
+
+- Some Questions.txt's texts might not display correctly depending
+  on your Tk's window's width and height (for example the 
+  "limitsconf" question does not show the indented list properly).
+
+- (in Debian) sendmail and PSAD questions even if you do not have
+  either installed. The IOLoader module seems to be unable to skip
+  them and remove them from the list of Questions. The error given is:
+
+>>Only displaying questions relevant to the current configuration.
+>>Question sendmaildaemon couldn't be skipped -- couldn't figure out which question to skip to!
+>>Question psad_config couldn't be skipped -- couldn't figure out which question to skip to!
+
+- In log-only mode the TK interface will not be able to proceed to changes since
+  it tries to save the configuration. The user running bastille needs to have write
+  access to it even if he is running bastille through 'fakeroot' to avoid the 
+  "you are root" check :). Probably in the near future log-only mode should *not*
+  try to write the configuration file and just go ahead and simulate the changes
+  that would be made to the system.
+
+-  Amanda will not work when the file permissions restrictions or the PAM limits
+  are enabled (check Debian Bug #155510 and Bug #118613 respectively) this is due
+  to :
+        a) amanda using /sbin/dump, /sbin/restore, and /usr/sbin/tcpd as a normal
+           user (and FilePermissions.pm) limits it
+        b) amanda using big files for backups
+
+  If you are using amanda _please_ do not have Bastille configure both restrictions
+  or you'll end up with issues on these side.
+

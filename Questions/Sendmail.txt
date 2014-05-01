@@ -1,0 +1,90 @@
+FILE: Sendmail.pm
+
+LABEL: sendmaildaemon
+SHORT_EXP: "Running sendmail in daemon mode makes your system more
+vulnerable to sendmail-based attacks, of which there have been many. 
+Unless this machine is a mail server, you probably do not need
+sendmail to run in daemon mode.
+
+Note: This will not affect outgoing mail from this machine except
+reliability in failed message sends"
+LONG_EXP: "You do not need to have sendmail running in daemon mode to send
+and receive email, and unless you have a constant network connection,
+you probably cannot run sendmail in daemon mode.  Daemon mode means that
+sendmail is constantly listening on a network connection waiting to
+receive mail.
+
+If you disable daemon mode, Bastille will ask you if you would like to
+run sendmail every few minutes to process the queue of outgoing mail. 
+Most programs which send mail will still do so immediately, and
+processing the queue will take care of transient errors.
+
+If you receive all of your email via a POP/IMAP  mailbox provided by your ISP,
+you may have no need of daemon-mode sendmail, unless you're running a
+special fetchmail-style POP/IMAP based retrieval program.  For instance, you
+can turn daemon mode  off if you read your mail via Netscape's common
+POP/IMAP read  functionality.  The only reason to run sendmail in daemon
+mode is if you are running a mail server."
+QUESTION: "Do you want to stop sendmail from running in daemon mode? [Y]"
+QUESTION_AUDIT: "Is sendmail's daemon mode disabled?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: sendmailcron
+NO_CHILD: vrfyexpn
+SKIP_CHILD: sendmailcron
+PROPER_PARENT: disable_kudzu
+
+LABEL: sendmailcron
+SHORT_EXP: "Should sendmail run every 15 minutes to process
+the mail queue, processing and sending out e-mail?  If this machine does
+not run sendmail in daemon mode, you may want to do this to make
+your outbound mail more reliable.
+
+In most cases, mail queue processing is not required since most mailer
+programs activate sendmail to process their particular message.  A message
+usually only gets written to the queue (and thus needs a cron entry) if
+sendmail has trouble delivering it.  Example: the receiving mail server is down.
+
+NOTE: Sendmail will not accept inbound connections while processing the mail queue.
+
+NOTE: The 15 minute interval can be easily changed later, see crontab(1)."
+QUESTION: "Would you like to run sendmail via cron to process the queue? [N]"
+QUESTION_AUDIT: "Does sendmail process the queue via cron?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: vrfyexpn
+NO_CHILD: vrfyexpn
+PROPER_PARENT: sendmaildaemon
+
+LABEL: vrfyexpn
+SHORT_EXP: "An attacker can use sendmail's vrfy (verify recipient existence)
+and expn (expand recipient alias/list contents) commands to learn more
+about accounts on the system.  The expn command, for instance, could be
+used to find out who the \"postmaster\" and \"abuse\" aliases redirect mail to,
+which identifies which user account belongs to the system administrator.
+
+These sendmail commands can probably be disabled without breaking anything
+and will make the system cracker's job more difficult.  The only reasons
+to leave them on are (1) you are running an old-fashioned, friendly site,
+(2) you are using them to debug your own mail server, or (3) the very small
+chance that some software you use relies on this."
+QUESTION: "Would you like to disable the VRFY and EXPN sendmail commands? [Y]"
+QUESTION_AUDIT: "Are the VRFY and EXPN sendmail commands disabled?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: chrootbind
+NO_CHILD: chrootbind
+PROPER_PARENT: sendmaildaemon
+

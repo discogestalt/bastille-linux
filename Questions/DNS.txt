@@ -1,0 +1,102 @@
+FILE: DNS.pm
+
+LABEL: chrootbind
+SHORT_EXP: "The name server, \"named\", usually runs with privileged
+access.  This allows \"named\" to function correctly, but increases the
+security risk if any vulnerabilities are found. 
+We can decrease this risk by running \"named\" as a non-privileged user and
+by putting its files in a restricted file system (called a chroot jail).
+
+NOTE:  If a security vulnerability is found in one of the files that has been
+placed inside of the \"chroot jail\" then that file must be manually patched
+by copying the fixed file(s) into the jail.
+
+HP-UX Note: The general structure of the jail will be created but several
+entries will be added to Bastille's generated TODO list which require
+MANUAL ACTION on your part.  (HP-UX does not ship with a name server
+configured by default, so much of this depends on how your system's name
+server is configured.)
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+LONG_EXP:  "The name server, \"named\", usually runs with privileged
+access.  This allows \"named\" to function correctly, but increases the
+security risk if any vulnerabilities are found. 
+We can decrease this risk by running \"named\" as a non-privileged user and
+by putting its files in a restricted file system (called a chroot jail).
+
+NOTE:  If a security vulnerability is found in one of the files that has been
+placed inside of the \"chroot jail\" then that file must be manually patched
+by copying the fixed file(s) into the jail.
+
+For security reasons, it would be ideal to restrict every process which
+is listening to untrusted data as much as possible.  This is especially true
+of network daemons, such as bind.  If a vulnerability is found in the
+daemon, then a chroot jail will contain any intrusions.   Only a root process
+can break out of a chroot jail, so Bastille will ensure that \"named\" is
+not running as root.  A successful attack on \"named\" in a chroot jail
+running as a non-privileged user will allow the attacker to modify only
+files owned or writeable by that non-privileged user and protect the
+rest of the system.
+
+HP-UX Note: The general structure of the jail will be created but several
+entries will be added to Bastille's generated TODO list which require
+MANUAL ACTION on your part.  (HP-UX does not ship with a name server
+configured by default, so much of this depends on how your system's name
+server is configured.)
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Would you like to chroot named and set it to run as a non-root user? [N]"
+QUESTION_AUDIT: "Is named in a chroot jail and is it set to run as a non-root user?"
+REQUIRE_DISTRO: LINUX not_HP-UX11.31SRP HP-UX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP: "You've changed the name server, named, to run in a safer mode,
+one in which it is restricted to operating within the directory /var/named
+or /home/dns on Redhat and Mandrake systems and /var/jail/bind on HP-UX
+systems.
+
+This \"chroot jail\" stops an attacker from using named to do more extensive
+damage to the system if s/he is able to compromise the named.  This
+should be mostly transparent to you, except in two respects:
+
+  1) All of your configuration edits for named must occur in the jaildir.
+
+  2) If you use ndc to control named, you will need to use
+
+           ndc -c /<jail-dir>/var/run/ndc
+
+  3) Again, all of your configuration files must be moved to the jaildir.
+"
+NO_EXP:
+YES_CHILD: namedoff
+NO_CHILD: namedoff
+PROPER_PARENT: vrfyexpn
+
+LABEL: namedoff
+SHORT_EXP: "Until you configure your name (DNS) server, we would like to
+temporarily turn it off.  In almost all cases, you should only need your own
+name server if you own your own domain and you want this _particular_
+machine to answer DNS queries.
+
+This is especially important as there have been dangerous remote-root
+vulnerabilities in several recent versions of BIND.  The security
+principle of Minimalism applies here: minimize the number of possible
+attack points to be least vulnerable to attack.
+
+Even if you plan on setting up a name server on this machine, you should
+deactivate it for now until you get the configuration files setup.   You
+can reactivate it then by typing, as root:     /sbin/chkconfig named on  "
+QUESTION: "Would you like to deactivate named, at least for now? [Y]"
+QUESTION_AUDIT: "Is named deactivated?"
+REQUIRE_DISTRO: LINUX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: deactivate_hpws_apache
+NO_CHILD: deactivate_hpws_apache
+PROPER_PARENT: chrootbind

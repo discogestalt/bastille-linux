@@ -1,0 +1,76 @@
+FILE: ConfigureMiscPAM.pm
+
+LABEL: limitsconf
+SHORT_EXP: "In certain kinds of system attacks, known as Denial of Service
+(DoS) attacks, the goal is not to gain access but instead to disrupt the
+normal operation of the computer.  You can protect against certain types of
+denial of service attacks by setting limits on the resources available to each
+user.
+
+Though you should customize this setting later if you're running a high-
+output production server, we recommend this action for all machines and
+configurations."
+LONG_EXP:  "Denial of Service attacks are often very difficult to defend
+against, since they don't require access of any kind to the target machine.
+Since several major daemons, including the web, name, and FTP servers, may
+run as a particular user, you can limit the effectiveness of many Denial of
+Service attacks by modifying /etc/security/limits.conf.  If you restrict the
+resources available in this manner, you can effectively cripple most Denial of
+Service attacks.
+
+If you choose this option, you'll be setting the following initial limits on
+resource usage:
+	
+   - The number of allowed core files will be set to zero.  Core files
+     can be useful for diagnosing system problems, but they are very
+     large files and can be exploited by an attacker to fill up your
+     file system.  They can also be used to tune vulnerability exploitation 
+     tools.  Finally, an attacker might use the core file from a crashed 
+     program to obtain privileged data that was dumped by the program.
+
+   - Individual users are limited to 150 processes each.  This should
+     be more than enough for normal system usage, and is not enough
+     to bring down your machine.  (Linux only)
+
+All of these values can be edited later."
+QUESTION: "Would you like to put limits on system resource usage? [N]"
+QUESTION_AUDIT: "Is system resource usage limited?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP: "System resource limits have been set in the file
+/etc/security/limits.conf, which you can edit later as necessary."
+NO_EXP:
+YES_CHILD: consolelogin
+NO_CHILD: consolelogin
+PROPER_PARENT: compiler
+
+LABEL: consolelogin
+SHORT_EXP: "Under some distributions, users logged in at the console have
+some special access rights (like the ability to mount the CD-ROM drive).  You
+can disable this special access entirely, but a more flexible option is to
+restrict console access to a small group of trusted user accounts."
+QUESTION: "Should we restrict console access to a small group of user accounts? [N]"
+QUESTION_AUDIT: "Is console access restricted o a small group of user accounts?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: consolelogin_accounts
+NO_CHILD: morelogging
+SKIP_CHILD: morelogging
+PROPER_PARENT: limitsconf
+
+LABEL: consolelogin_accounts
+SHORT_EXP: "Please enter in the account names that should be able to login
+via the console, placing a space between each name."
+QUESTION: "Which accounts should be able to login at console? [root]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: root
+YN_TOGGLE: 0
+YES_CHILD: morelogging
+NO_CHILD: morelogging
+PROPER_PARENT: consolelogin

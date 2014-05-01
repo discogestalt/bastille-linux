@@ -1,0 +1,835 @@
+FILE: MiscellaneousDaemons.pm
+
+LABEL: minimalism
+SHORT_EXP: "To make the operating system more secure, we try to deactivate all
+system daemons, especially those running at a high/unlimited level of
+privilege.  Each active system daemon serves as a potential point of
+break-in, which might allow an attacker illegitimate access to your
+system.  An attacker can use these system daemons to gain access if they
+are later found to have a bug or security vulnerability.
+
+We practice an exposure-minimization principle here: minimize the number of privileged
+system daemons and you can decrease your chances of being a victim should
+one of the standard daemons be found later to have a vulnerability.  This
+section will require careful attention, but if you have doubts, you should
+be able to safely select the default value in most cases."
+QUESTION:
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB OSX
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: apmd
+NO_CHILD: apmd
+PROPER_PARENT: laus
+
+LABEL: apmd
+SHORT_EXP: "apmd and acpid are used to monitor battery power on 
+notebook/laptop computers. acpid is also used by hal for hotplug 
+devices.  Note: if hal is enabled, acpid cannot be disabled."
+QUESTION: "Would you like to disable acpid and/or apmd? [N]"
+QUESTION_AUDIT: "Are acpid and apmd disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: nfs_core
+NO_CHILD: nfs_core
+PROPER_PARENT: minimalism
+
+LABEL: nfs_core
+SHORT_EXP: "RPC is a traditional part of Unix, and is used in a variety of Unix services,
+including NIS, NFS, and others.  If you are sure you are not using a  service that is affected,
+you may elect to disable RPC, as it has had security issues in the past, and doesn't by default, support
+a strong authentication mechanism.  If you disable the core NFS infrastructure,
+Bastille will disable NIS, NIS+ and NFS."
+QUESTION: "Would you like to disable the NFS and RPC infrastructure? [N]"
+QUESTION_AUDIT: "Is the NFS/RPC infrastructure disabled?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: disable_smbclient
+NO_CHILD: remotefs
+SKIP_CHILD: remotefs
+PROPER_PARENT: apmd
+
+LABEL: remotefs
+SHORT_EXP: "We would like to disable the network file systems NFS (Network
+File System, common to most Unix variants) and SMB (Samba, which comes with
+most Linux distributions).  We strongly recommend that you disable both of
+these.  NFS has a history of major security vulnerabilities; Samba is slightly
+better, but it is still a shared file system and still raises potentially
+severe security concerns.  Both services use clear-text, meaning that any
+data transferred can be monitored by anyone else on your network (even if you
+use a switching router, as switches were designed for performance, not
+security).  Transferred data includes file handles, which can then be used to
+modify files.
+
+These services are safer if you can set your firewall to block
+packets for either of them from entering or leaving your network, but it's
+probably best to deactivate them until you can investigate whether or not
+you need them and how to best secure them."
+QUESTION: "Would you like to deactivate NFS and Samba? [Y]"
+QUESTION_AUDIT: "Are NFS and Samba deactivated?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: nfs_server
+NO_CHILD: nfs_server
+PROPER_PARENT: nfs_core
+
+LABEL: nfs_server
+SHORT_EXP: "An NFS (Network File System) server allows its host machine to
+export file systems onto other designated machines on a network.  NFS has
+a history of major security vulnerabilities, as well as being historically a
+clear-text protocol and not-authenticating the presented username.  Any
+data transferred by NFS can be monitored and may be tampered with by any
+other network machine.  Transferred data includes file handles, which can
+then be used to modify files.
+
+This service can be made safer if it is locked behind a firewall, that will
+block NFS packets from entering or leaving your network, or on HP-UX
+11.31, and later, configured to use \"Secure NFS,\" which *does* provide data
+integrity and confidentiality.  It is best to deactivate NFS until you can
+investigate whether or not you need NFS and how to best secure it.
+
+Note that neither this nor the NFS Client question currently disable lockd.
+
+One other alternative is CIFS/9000 (Samba).  It is still a clear-text,
+shared file system and therefore still raises security concerns, but unlike
+NFS, CIFS/9000 at least requires the user to authenticate (prove they are who
+they say they are) before reading or writing to files.  Other alternatives
+include tunneling NFS through IPSec or Secure Shell, but this can take
+quite a bit of effort to setup and may degrade performance.  On HP-UX versions
+11.31 and later, you also have the option of configuring \"Secure NFS\" to provide both
+integrity and confidentiality of data."
+QUESTION: "Would you like to deactivate the NFS server on this system? [Y]"
+QUESTION_AUDIT: "Is the NFS server on this system deactivated?"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: nfs_client
+NO_CHILD: nfs_client
+PROPER_PARENT: remotefs
+
+LABEL: nfs_client
+SHORT_EXP: "NFS (Network File System) client daemons include automountd,
+and on pre-11.31 versions of HP-UX, biod, and nfsiod and automount on Mac OS X.
+
+The relevant daemons are as follows: the automountd daemon, which
+allows non-root users to mount nfs file systems, which reduces the
+burden on administrator, and allows for a more flexible operating environment.
+However this allows any user to perform an operation that is normally
+restricted to root.  There is an inherent security benefit to removing
+privileges from non-root accounts.  
+
+biod, a block I/O daemon, available on HP-UX 11.23 and earlier,
+is used on an NFS client to handle read-ahead and
+write-behind buffer caching, which improves nfs mounted file systems
+performance.  Turning this service off will have performance impacts if this
+machine is still used as a nfs client.  biod is obsolesced in HP-UX
+11.31 and later.
+
+nfsiod increases NFS performance on the client side, though it is not necessary.
+Deactivating it costs you only performance at most, though you should primarily
+choose this option if you're not mounting NFS directories.
+
+NFS has a history of major security vulnerabilities, it is a clear-text protocol,
+if you are not using \"Secure NFS,\" available on HP-UX 11.31.
+Any data transferred by the legacy NFS can be monitored by any other network
+machine.  Transferred data includes file handles, which
+can then be used to modify files.
+
+These services can be made safer if they are locked behind a firewall that will
+block NFS packets from entering or leaving your network, or if \"Secure NFS\" is
+used.  It is best to deactivate them until you can investigate
+whether or not you need NFS and how to best secure it."
+QUESTION: "Would you like to deactivate NFS client daemons? [Y]"
+QUESTION_AUDIT: "Are the NFS client daemons deactivated?"
+REQUIRE_DISTRO: HP-UX OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: pcmcia
+NO_CHILD: pcmcia
+PROPER_PARENT: nfs_server
+
+LABEL: pcmcia
+SHORT_EXP: "If this machine is not a notebook, it probably has no PCMCIA
+ports.  PCMCIA ports allow the use of easily removable credit-card-sized
+devices.  If this machine has no PCMCIA ports, you should be able to disable
+PCMCIA services without any problems."
+QUESTION: "Would you like to disable PCMCIA services? [Y]"
+QUESTION_AUDIT: "Are PCMCIA services disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: dhcpd
+NO_CHILD: dhcpd
+PROPER_PARENT: nfs_client
+
+LABEL: dhcpd
+SHORT_EXP: "DHCP servers are used to distribute temporary IP (Internet)
+addresses to other machines.  An organization generally only has one or two
+DHCP servers, if any.  Unless this machine is going to be a DHCP server, you
+should deactivate the DHCP daemon.  Deactivating the daemon will not
+prevent you from running DHCP as a client."
+QUESTION: "Would you like to disable the DHCP daemon? [Y]"
+QUESTION_AUDIT: "Is the DHCP daemon disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: gpm
+NO_CHILD: gpm
+PROPER_PARENT: pcmcia
+
+LABEL: gpm
+SHORT_EXP: "GPM is used in console (text) mode to add mouse support to
+text mode. If you will be using this machine in console mode and will want
+mouse support, leave GPM on."
+QUESTION: "Would you like to disable GPM? [Y]"
+QUESTION_AUDIT: "Is GPM disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: innd
+NO_CHILD: innd
+PROPER_PARENT: dhcpd
+
+LABEL: innd
+SHORT_EXP: "innd is the standard Internet news server, used to make the
+news network. You should only leave it turned on if this machine will serve as
+the  organization's news server."
+LONG_EXP: "Very few people need to create their own news server, as your
+ISP or university usually provides one.  Further, they require a great deal
+of disk space, processor power, bandwidth and maintenance.  In all but the
+rarest of cases, you should disable the news server daemon."
+QUESTION: "Would you like to disable the news server daemon? [Y]"
+QUESTION_AUDIT: "Is the news server daemon disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: disable_routed
+NO_CHILD: disable_routed
+PROPER_PARENT: gpm
+
+LABEL: disable_routed
+SHORT_EXP: "Unless this machine is serving as a router, you should turn off
+the routing daemons (both routed and gated).  Even if the machine is
+serving as a router, you should probably disable routed because gated
+is newer and considered more secure."
+LONG_EXP: "Very few machines need to be running routing daemons.  If your
+machine is only connected to the Internet through one method, you can
+disable routing protocols. If this machine is at an ISP or major networking
+center, you should still use gated instead of routed.  Bastille only helps
+make your machine more secure, so if this machine is currently a router
+using routed, you should leave this on, then migrate to gated manually later.
+(Bastille will not enable gated for you.)"
+QUESTION: "Would you like to deactivate routed? [Y]"
+QUESTION_AUDIT: "Is routed deactivated?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: disable_gated
+NO_CHILD: disable_gated
+PROPER_PARENT: innd
+
+LABEL: disable_gated
+SHORT_EXP: "Unless this machine is serving as a router, you should turn off
+the routing daemons (both routed and gated)."
+LONG_EXP: "Very few machines need to be running routing daemons.  If your
+machine is only connected to the Internet through one method, you can
+disable routing protocols.  If this machine is acting as a router, then
+you should leave gated on."
+QUESTION: "Would you like to deactivate gated? [Y]"
+QUESTION_AUDIT: "Is gated deactivated?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: nis_server
+NO_CHILD: nis_server
+PROPER_PARENT: disable_routed
+
+LABEL: nis_server
+SHORT_EXP: "An NIS (Network Information System) server is used to distribute
+network naming and administration information to other machines on a network
+
+NIS is a system used for synchronizing key host information,
+including account names and passwords.  It is a clear-text protocol, and can be
+easily compromised to gain access to accounts on the system.  If you are
+really interested in using NIS, you should configure your network firewall to block NIS
+traffic coming in and going out of your network.
+
+On many systems, including trusted-mode HP-UX systems, passwords are not only
+encrypted but also readable only by the super-user.  This defense measure was
+taken because encrypted passwords can be decrypted fairly quickly with today's
+computers.  When you use NIS, the encrypted password is transmitted in clear-text
+and made available to anyone on the network, compromising this defense
+measure.  Because of this, the HP-UX trusted mode and password shadowing security
+features that Bastille can enable, are incompatible with NIS.  If you choose to
+convert to trusted-mode or shadow passwords, you should also disable NIS.
+
+We recommend that you deactivate NIS server programs. 
+Alternatives include NIS+, LDAP, and Kerberos."
+QUESTION: "Would you like to deactivate NIS server programs? [Y]"
+QUESTION_AUDIT: "Are NIS server programs deactivated?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: nis_client
+NO_CHILD: nis_client
+PROPER_PARENT: disable_gated
+
+LABEL: nis_client
+SHORT_EXP: "An NIS (Network Information System) client is used to receive
+network naming and administration information from a server machine on its
+network.
+
+NIS is a system used for synchronizing key host information, including account
+names and passwords.  It is a clear-text protocol, and can be easily compromised
+to gain access to accounts on the system.  If you are really interested in using
+NIS, you should configure your firewall to block NIS traffic coming in or going
+out of your network.
+
+Also, if you plan to use a host-based network firewall, be sure to disable NIS
+client.  If your NIS client is left configured but the NIS traffic is blocked at
+your firewall, your machine will bog down trying to connect to the NIS server.
+NIS is not a well-behaved protocol and the ports it needs are hard to
+characterize.  It also needs to initiate connections from both client and server.
+
+On many systems, including trusted-mode HP-UX systems, passwords are not only
+encrypted but also readable only by the super-user.   These measures were taken
+because given the encrypted string an attacker can attempt to determine valid
+passwords for users on your system by using dictionary or brute force password
+cracking programs.  When you use NIS, the encrypted password is transmitted in
+clear-text and made available to anyone on the network, compromising this defense
+measure.  Because of this, the HP-UX trusted mode and password shadowing security
+features that Bastille can enable, are incompatible with NIS.  If you choose to
+convert to trusted-mode or shadow passwords, you should also disable NIS.
+
+We recommend that you deactivate NIS client programs. 
+Alternatives include NIS+, LDAP, and Kerberos"
+QUESTION: "Would you like to deactivate NIS client programs? [Y]"
+QUESTION_AUDIT: "Are NIS client programs deactivated?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: nisplus_server
+NO_CHILD: nisplus_server
+PROPER_PARENT: nis_server
+
+LABEL: nisplus_server
+SHORT_EXP: "NIS+ is a service similar to NIS, that propagates network and user
+information throughout a data center or enterprise.  Though it does use encryption,
+and as such is more secure than NIS, it is largely a deprecated protocol, in favor of
+LDAP, tunneled over SSL.  If this system is not a designated NIS+ server or client, you should ensure the
+associated services are not running to limit the number of active interfaces on the
+system."
+QUESTION: "Would you like to deactivate NIS+ server programs? [Y]"
+QUESTION_AUDIT: "Are NIS+ server programs deactivated?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: nisplus_client
+NO_CHILD: nisplus_client
+PROPER_PARENT: nis_client
+
+LABEL: nisplus_client
+SHORT_EXP: "NIS+ is a service similar to NIS, that propagates network and user
+information throughout a data center or enterprise.  Though it does use encryption,
+and as such is more secure than NIS, it is largely a deprecated protocol, in favor of
+LDAP, tunneled over SSL.  If this system is not using NIS+, you should ensure the
+associated services are not running to limit the number of active interfaces on the
+system."
+QUESTION: "Would you like to deactivate NIS+ client programs? [Y]"
+QUESTION_AUDIT: "Are NIS+ client programs deactivated?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_smbclient
+NO_CHILD: disable_smbclient
+PROPER_PARENT: nisplus_server
+
+LABEL: disable_smbclient
+SHORT_EXP: "CIFS can be used to share files and other resources amongst computers.
+The CIFS product suite integrates HP-UX with Microsoft Windows environments by providing
+remote file sharing, printer access and authentication services amongst HP-UX and Windows systems.
+
+Using this protocol is preferred, from a security standpoint, over a protocol like
+NFS, since it is easier to set up cryptographic authentication, and is easier to pass
+through a firewall.  However, it, like any protocol, should be disabled if not in use to
+reduce the attack surface of the system."
+QUESTION: "Would you like to disable the HP-UX CIFS client?"
+QUESTION_AUDIT: "Is the system CIFS client disabled?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_smbserver
+NO_CHILD: disable_smbserver
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: nisplus_client
+
+LABEL: disable_smbserver
+SHORT_EXP: "CIFS can be used to share files and other resources amongst computers.
+The CIFS product suite integrates HP-UX with Microsoft Windows environments by providing
+remote file sharing, printer access and authentication services amongst HP-UX and Windows systems.
+
+Using this protocol is preferred, from a security standpoint, over a protocol like
+NFS, since it is easier to set up cryptographic authentication, and is easier to pass
+through a firewall.  However, if this service is not sharing resources from this server,
+it should be disabled to reduce attack opportunities."
+QUESTION: "Would you like to disable the HP-UX CIFS (Samba) Server?"
+QUESTION_AUDIT: "Is the system CIFS(Samba) Server disabled?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_bind
+NO_CHILD: disable_bind
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: disable_smbclient
+
+LABEL: disable_bind
+SHORT_EXP: "The Domain Name Service(DNS) server, Bind, is a useful, though easily spoofed
+infrastructure for mapping IP addresses to their associated host names.  It should be disabled
+if this system is not a DNS server, to reduce the risk to this system if an exploit is discovered."
+QUESTION: "Would you like to disable the Bind/DNS server on this system."
+QUESTION_AUDIT: "Is the system Bind/DNS daemon disabled?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: nobody_secure_rpc
+NO_CHILD: nobody_secure_rpc
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: disable_smbserver
+
+LABEL: nobody_secure_rpc
+SHORT_EXP: "Secure RPC is a cryptographically authenticated means to communicate with a system.
+By configuring keyserv to prevent the use of default keys for the nobody user, we prevent
+users from accessing that user with default credentials.  This is a safer way to operate Secure
+RPC."
+QUESTION: "Would you like to disable the \"nobody\" user in the ONC Secure RPC?"
+QUESTION_AUDIT: "Is the \nobody\" user in Secure RPC disabled?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: configure_ssh
+NO_CHILD: configure_ssh
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: disable_bind
+
+LABEL: configure_ssh
+SHORT_EXP: "Secure Shell is arguably one of the most important tools in an administrators\' security
+toolkit.  It enables remote secure login and command execution, and can wrap otherwise-unauthenticated and
+non-protected X11 traffic in a secure SSL tunnel.  This item will configure SSH to conform with
+some generally-accepted best-practices.
+"
+LONG_EXP: "Secure Shell is arguably one of the most important tools in an administrators\' security
+toolkit.  It enables remote secure login and command execution, and can wrap otherwise-unauthenticated and
+non-protected X11 traffic in a secure SSL tunnel.  This item will configure SSH to conform with
+some generally-accepted best-practices.
+
+Specifically, this item will configure the following:
+a) Use only protocol 2, a protocol generally considered more secure.
+b) Ignore rhosts, to avoid trusting remote hosts to assert user id without user-based authentication.
+c) Forward X11 traffic, if any, in a secure SSL tunnel.
+d) Block use of accounts with empty passwords.
+e) Use the contents of /etc/issue (also set in Bastille) as the login banner.
+"
+QUESTION: "Would you like to configure the HP-UX Secure Shell daemon to use generally-accepted defaults? [Y]"
+QUESTION_AUDIT: "Is the Secure Shell daemon configured in accordance with generally-accepted defaults?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: snmpd
+NO_CHILD: snmpd
+PROPER_PARENT: nobody_secure_rpc
+
+LABEL: snmpd
+SHORT_EXP: "SNMP, or the simple network management protocol, is
+used to aid in management of machines over the network.  This
+can be a powerful method of monitoring and administering
+a set of networked machines.  If you use network management
+software to maintain the computers on your network then you
+should audit the way in which SNMP is used by that software.
+You should (1) use SNMPv3 wherever possible, (2) set restrictive
+access control lists, and (3) block SNMP traffic at your firewall.  Otherwise
+it makes sense to disable the SNMP daemons.
+
+The average home user or standalone server has no reason to run
+these daemons and depending on their default configuration, they
+could be a major security risk.  Alternatively if configured
+correctly, and used in conjunction with management software these
+daemons could be used to dramatically improve accessibility and
+response time to problems when they occur.
+
+Things known to not work if this is disabled:
+
+Network management software, such as HP Openview, which relies
+on SNMP"
+QUESTION: "Would you like to disable SNMPD? [Y]"
+QUESTION_AUDIT: "Is SNMPD disabled?"
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: minimize_chkconfig
+NO_CHILD: minimize_chkconfig
+PROPER_PARENT: configure_ssh
+
+LABEL: minimize_chkconfig
+SHORT_EXP: "For the extra paranoid, we can disable all of the chkconfig'd
+services, with the exception of:
+
+	  cron, syslog, keytable, network, gpm, xfs, pcmcia
+
+This is pretty minimalist and should only be undertaken if you understand
+how and when to turn the remaining services on."
+LONG_EXP: "For the extra paranoid, we can disable all of the chkconfig'd
+services, with the exception of:
+
+	  cron, syslog, keytable, network, gpm, xfs, pcmcia
+
+This is pretty minimalist and should only be undertaken if you understand
+how and when to turn the remaining services on."
+QUESTION: "Should we disable most chkconfig'd services?"
+QUESTION_AUDIT: "Are most chkconfig'd services disabled?"
+REQUIRE_DISTRO: MN7.0 MN7.1 MN7.2 MN8.0 MN8.1
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+DEFAULT_ANSWER: N
+YES_EXP:
+NO_EXP:
+PROPER_PARENT: snmpd
+YES_CHILD:disable_ptydaemon
+NO_CHILD: disable_ptydaemon
+SKIP_CHILD: disable_ptydaemon
+
+LABEL: disable_ptydaemon
+SHORT_EXP: "The ptydaemon is used by the shell layers (shl) software.
+shl is a historical alternative to job control.  If no one on your system
+is going to use shl, you should be able to safely turn the ptydaemon off.
+
+If you disable and remove ptydaemon, Bastille will also disable
+vtdaemon since it depends on ptydaemon to operate.
+
+These are both used for very old protocols.  If you don't know what uucp
+is, you probably don't need these.  If you want a history lesson, you
+can look at the man pages for \"vt\", \"vtdaemon\", \"uucp\" and \"shl\".
+
+The security benefit of turning these off is based on the principle of
+minimalism.  These daemons do run as root and accept input from a normal
+user.  There is probably a low security risk associated with leaving these
+daemons running, but there is little reason to expose yourself to that
+risk unnecessarily."
+QUESTION: "Would you like to disable both the ptydaemon and vtdaemon?"
+QUESTION_AUDIT: "Are both the ptydaemon and vtdaemon disabled?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_pwgrd
+NO_CHILD: disable_pwgrd
+SKIP_CHILD: disable_pwgrd
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: minimize_chkconfig
+
+
+LABEL: disable_pwgrd
+SHORT_EXP:"pwgrd is the Password and Group Hashing and Caching daemon.
+
+pwgrd provides accelerated lookup of password and group information
+for libc routines like getpwuid and getgrname. However, on systems
+with normal sized (less than 50 entries) password files, pwgrd will
+probably slow down lookups, due to the overhead presented by pwgrd's
+use of Unix domain sockets.
+
+The security benefit of turning this service off is also based on the principle
+of minimalism.  This daemon does run as root and accepts input from
+non-privileged users."
+QUESTION: "Would you like to disable pwgrd?"
+QUESTION_AUDIT: "Is pwgrd disabled?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_rbootd
+NO_CHILD: disable_rbootd
+SKIP_CHILD: disable_rbootd
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: disable_ptydaemon
+
+LABEL: disable_rbootd
+SHORT_EXP: "The rbootd daemon is used for a protocol called RMP, which is a
+predecessor to the \"bootp\" protocol (which serves DHCP).  Basically, unless
+you are using this machine to serve dynamic IP addresses to very old
+HP-UX systems (prior to 10.0, or older than s712's), you have
+no reason to have this running."
+QUESTION: "Should Bastille deactivate rbootd?"
+QUESTION_AUDIT: "Is rbootd deactivated?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: other_boot_serv
+NO_CHILD: other_boot_serv
+SKIP_CHILD: other_boot_serv
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: disable_pwgrd
+
+LABEL: other_boot_serv
+SHORT_EXP: "mrouted, rwhod, ddfs, rarpd, rdpd, and snaplus2 are services that
+are not usually used on standalone or specific-purpose servers.  They are
+sometimes used to provide network services to other systems if specifically
+configured to do so.  A good default answer is to disable these unless
+you know of a specific reason to leave them enabled."
+QUESTION: "Should Bastille deactivate legacy services?"
+QUESTION_AUDIT: "Are the older, uncommon boot services disabled?"
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: xaccess
+NO_CHILD: xaccess
+SKIP_CHILD: xaccess
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: disable_rbootd
+
+LABEL: xaccess
+SHORT_EXP: "XDMCP is an unencrypted protocol which allows remote connections to an
+X server.  This protocol is commonly used by dumb graphics terminals and PC-based
+X-emulation software to bring up a remote login and desktop."
+QUESTION: "Would you like to disallow remote X logins?"
+QUESTION_AUDIT: "Are remote X logins prohibited?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: rendezvous
+NO_CHILD: rendezvous
+SKIP_CHILD: rendezvous
+REQUIRE_DISTRO: HP-UX
+PROPER_PARENT: other_boot_serv
+
+LABEL: rendezvous
+SHORT_EXP: "Zeroconf (an IETF protocol) enables computers to find 
+Internet-connected resources on the local network, automatically making
+their offered resources available to the user.  This has been called
+Rendezvous and Bonjour in the OS X space.  Zeroconf broadcasts any
+services it might offer to other systems, like shared directories
+and such.
+
+While this promises to be an extremely useful program, more paranoid 
+users may find this behavior to be overly friendly, especially if their
+computer often sits on less-trusted networks.
+
+This item deactivates the mDNSResponder program.
+
+You can read more about Zeroconf (Rendezvous/Bonjour) here:
+http://www.apple.com/macosx/jaguar/rendezvous.html"
+QUESTION: "Would you like to deactivate Zeroconf's mDNSResponder?"
+QUESTION_AUDIT: "Has Zeroconf's mDNSResponder host/service discovery deactivated?"
+DEFAULT_ANSWER: "N"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: autodiskmount
+NO_CHILD: autodiskmount
+SKIP_CHILD: autodiskmount
+REQUIRE_DISTRO: OSX RHFC4
+PROPER_PARENT: xaccess
+
+LABEL: autodiskmount
+SHORT_EXP: "Mac OS X's default behavior is to automatically mount any 
+media that you place in its removable drives.  In some environments,
+you may not want to allow ordinary users to mount removable media 
+quite so easily.  One example of this might be a public computer lab
+where you want to maintain stricter control on users' transferring 
+external data via physical media."
+QUESTION: "Would you like to disable the autodiskmount program?"
+QUESTION_AUDIT: "Is the autodiskmount program disabled?"
+DEFAULT_ANSWER: "N"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_ntpd
+NO_CHILD: disable_ntpd
+SKIP_CHILD: disable_ntpd
+REQUIRE_DISTRO: OSX
+PROPER_PARENT: rendezvous
+
+LABEL: disable_ntpd
+SHORT_EXP: "Mac OS X's ships with the Network Time Protocol daemon (ntpd)
+active by default.  Bastille can deactivate it for you.  
+
+This is a difficult decision for most security-conscious sites.  On the
+one hand, incident response and forensics very much require that the clocks
+at a site be synchronized to small fractions of a second.  On the other hand,
+ntpd is a network-accessible root-level program, which makes it an accessible
+and inviting target to attackers.
+
+We would recommend against deactivating ntpd unless you know what you're doing."
+QUESTION: "Would you like to disable the Network Time Program Daemon (ntpd)?"
+QUESTION_AUDIT: "Is the Network Time Program Daemon (ntpd) disabled?"
+DEFAULT_ANSWER: "N"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: diagnostics_localonly
+NO_CHILD: diagnostics_localonly
+SKIP_CHILD: diagnostics_localonly
+REQUIRE_DISTRO: OSX
+PROPER_PARENT: autodiskmount
+
+LABEL: diagnostics_localonly
+SHORT_EXP: "The HP-UX diagnostics daemon has the ability to listen on
+a network port.  The diagnostics GUI can then be run remotely for
+administrators and support personnel to find and fix hardware problems.
+Later versions of this daemon have the option to only listen to local
+Unix domain sockets.  This way, the GUI can still be run locally to
+diagnose hardware problems, but it does not allow a network attacker
+to take advantage of any vulnerabilities which may be found in the
+future. "
+QUESTION: "Would you like to restrict the diagnostic daemon to local
+connections?"
+QUESTION_AUDIT: "Is the diagnostic daemon restricted to local connections?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: syslog_localonly
+NO_CHILD: syslog_localonly
+SKIP_CHILD: syslog_localonly
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+PROPER_PARENT: disable_ntpd
+
+LABEL: syslog_localonly
+SHORT_EXP: "The system logging daemon (syslogd) can listen on a network port 
+to support remote logging facilities.  Remote logging can be helpful for
+security reasons because if an attacker gains access to a single machine,
+he can probably modify or delete the logs on that machine.  Storing the
+logs on another machine can help with forensics and incidence response,
+even if the logs on the local machine have been tampered with.
+
+None of this will prevent an attack, and it won't help if this machine is
+attacked.  syslog uses an unauthenticated protocol, so you may not be able to
+trust certain information in the logs anyway.  Finally, as another daemon which
+listens on the network, it presents yet another possible attack vector."
+QUESTION: "Would you like to restrict the system logging daemon to local
+connections?"
+QUESTION_AUDIT: "Is the system logging daemon restricted to local connections?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_bluetooth
+NO_CHILD: disable_bluetooth
+SKIP_CHILD: disable_bluetooth
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+PROPER_PARENT: diagnostics_localonly
+
+LABEL: disable_bluetooth
+SHORT_EXP: "Bluetooth is a wireless mechanism for connecting peripherals
+over very short distances, generally spanning under 10 feet.  Bluetooth 
+support on Fedora Core is supplied by hcid, the Bluetooth Human Controller 
+Interface (HCI) daemon, and sdpd, the Bluetooth Service Discovery Protocol
+(SDP) daemon.
+
+If you're not using Bluetooth on this machine to, say, connect it to a
+bluetooth wireless keyboard, bluetooth wireless headset or bluetooth capable
+cellular phone modem, these daemons can be deactivated."
+QUESTION: "Would you like to deactivate the Bluetooth daemons?"
+QUESTION_AUDIT: "Are the Bluetooth daemons (hcid and sdpd) deactivated?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_hpoj
+NO_CHILD: disable_hpoj
+SKIP_CHILD: disable_hpoj
+REQUIRE_DISTRO: RHFC4
+PROPER_PARENT: syslog_localonly
+
+LABEL: disable_hpoj
+SHORT_EXP: "The HP Office Jet (hpoj) script starts the Hewlett Packard
+(HP) all-in-one printing/scanning/copying/faxing Multi-function Peripheral 
+Linux support system.
+
+You only need this script active if you own a HP all-in-one device."
+QUESTION: "Would you like to deactivate the HP OfficeJet (hpoj) script on this machine?"
+QUESTION_AUDIT: "Has the HP OfficeJet (hpoj) script on this machine been deactivated?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_isdn
+NO_CHILD: disable_isdn
+SKIP_CHILD: disable_isdn
+REQUIRE_DISTRO: RH SE MN
+PROPER_PARENT: disable_bluetooth
+
+LABEL: disable_isdn
+SHORT_EXP: "The ISDN start script is activated by default on many
+Linux distributions.  ISDN is an older, now extremely unpopular 
+method of connecting machines to the Internet.  At 128 kbps, it has
+been replaced by IDSL and other far faster broadband connection types.
+
+Even if this machine is connected over ISDN, you only need this start
+script active if this machine itself has an ISDN card and thus serves
+as the direct ISDN endpoint at your location.
+ 
+You almost certainly aren't using ISDN to connect this machine to the
+Internet."
+QUESTION: "Would you like to deactivate the ISDN script on this machine?"
+QUESTION_AUDIT: "Has the ISDN script on this machine been deactivated?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: disable_kudzu
+NO_CHILD: disable_kudzu
+SKIP_CHILD: disable_kudzu
+REQUIRE_DISTRO: RH MN SE
+PROPER_PARENT: disable_hpoj
+
+LABEL: disable_kudzu
+SHORT_EXP: "The kudzu hardware detection daemon, created by Red Hat, runs on
+each boot, checks for new hardware, helps configure it if present, and then
+terminates.  This can be a very useful daemon on workstation machines where 
+users change their own hardware frequently.  On the other hand, this daemon 
+can allow unprivileged users (non-system administrators) to add and configure
+hardware with full root privilege.  This generates some additional risk.
+
+We believe that few environments need to give ordinary users this kind of 
+privilege.  This program can be safely deactivated.  Even after such 
+deactivation, sysadmins can indeed run kudzu from the command line to get the 
+very same hardware detection and configuration functionality."
+QUESTION: "Would you like to deactivate kudzu's run at boot?"
+QUESTION_AUDIT: "Is kudzu's run at boot deactivated?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: sendmaildaemon
+NO_CHILD: sendmaildaemon
+SKIP_CHILD: sendmaildaemon
+REQUIRE_DISTRO: RH MN SE
+PROPER_PARENT: disable_isdn

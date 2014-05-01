@@ -1,0 +1,14 @@
+This is the source tarball-specific README.  This tarball should really be
+used only by developers trying to hack or create a new build rpm/deb/pkg/foo.
+Please use your distribution-specific method otherwise, as described at
+www.bastille-unix.org.
+
+The Install.pl script is there to move stuff to the right locations, as the
+rpm build script already does.
+
+
+To get involved in Bastille UNIX/Linux development, e-mail me at 
+
+		jay@bastille-unix.org
+
+  - jjb

@@ -1,0 +1,544 @@
+		             Bastille User's Guide
+	
+
+
+OVERVIEW:
+
+Bastille is a system hardening/lockdown program which enhances the security of 
+a Unix host. It configures daemons, system settings, and firewalls to be more 
+secure. It turns off unneeded services such as pwgrd and printing services
+and configures client software such as rcp and rlogin to be more secure. It 
+helps create "chroot jails" that help limit the vulnerability of common 
+Internet services like Web servers and DNS, and can report the security configuration
+of the current system, allowing an administrator to decide what, if any, changes are necessary.
+
+Bastille draws from many major reputable sources on Unix Security. The initial
+development integrated a number of Open Source developers' expertise.  
+Contributions included Jay Beale's O/S hardening experience for Solaris and
+Linux, major points from The SANS Institute book "Securing Linux Step by Step",
+Kurt Seifried's "Administrator's Security Guide,"
+from the HP-UX Bastion Host White-paper, Armor, CIS and other sources.
+
+WEB REFERENCE DISCLAIMER:
+
+Note that links referred to in this document below are owned and maintained by
+their respective domain-owners.  Each owner is responsible for their own content and site. 
+
+ 
+DISTRIBUTIONS / OPERATING SYSTEMS:
+
+Bastille is available for these Distributions and operating systems.
+
+    Debian 2.2
+    HP-UX 11i v1.0 (11.11), 11i v2.0 (11.23), and 11i v3.0 (11.31)
+    Mandrake 6.0 - 8.1 
+    Red Hat 6.0 - 8.0
+    SuSE 7.2
+    Turbo Linux 7.0
+	 
+
+  
+
+
+DEPENDENCIES:
+
+  HP-UX
+      Perl version 5.6.1.E or greater, but Perl 5.8.8 and later yield better performance
+       Available at HP's Software Depot web site:
+       https://www.hp.com/go/perl
+
+  Linux
+      Perl version 5.6.1 or greater 
+      Perl/Tk version 800.24 or greater
+      Perl/Curses version 1.06 or greater (Linux only)
+  
+
+
+
+
+INSTALLATION:
+
+The Bastille installation is packaged in RPM format for Red Hat and Mandrake 
+and as an SD Depot for HP-UX. The instructions provided below will guide you 
+through the download and installation process.
+
+    Linux: 
+           1. http://sourceforge.net/projects/bastille-linux
+
+    HP-UX (If Perl/Bastille not already installed with OE): 
+	   1. Download Perl:                                
+              https://www.hp.com/go/perl
+
+           2. Download the Bastille Depot:   
+              https://www.hp.com/go/bastille
+			 
+           3. Install Perl:
+		  swinstall -s <path_to_depot>  perl
+
+           4. Install Bastille: 
+		  swinstall -s <path_to_depot>  HPUXBastille 
+		or download from
+		  https://www.hp.com/go/bastille
+
+
+
+USING BASTILLE:
+
+The tool can be used in three ways,: 1) interactively, to create a security-
+configuration file, or apply one, 2) non-interactively, either to apply 
+the configuration file from a previous interactive session, or 3) to report
+the configuration status of the system.  Run interactively, the Bastille 
+user interface has been designed to explain security issues to a system 
+administrator, then let them decide how to let the tool handle the issues.
+This both secures the system and educates the administrator. Employed 
+non-interactively, the configuration engine is used directly without the 
+aid of an interactive user interface. This makes the tool useful
+for either duplicating a security configuration onto multiple machines, or
+auditing a large number of machines.  The reporting interface does not change
+the system, but creates html, and text files indicating the current status
+of the system configuration.  If bastille had locked down the system prior
+to the report run, Bastille will create an additional file that indicates 
+what, if any, configuration drift has occurred since then.
+
+Bastille should be rerun whenever new software or patches are installed
+to check and see if those patches or software changed the system state.
+Also, on HP-UX, if swverify is run using either the -x fix=true option 
+or -F option to run vendor-specific fix scripts, then Bastille should be rerun.
+
+The following steps detail how to use Bastille to configure a system, or 
+create a configuration file that can be re-used later on a different system.
+
+Step 1: Change to root user since Bastille needs to change system 
+        configuration and settings.
+
+Step 2: If making system changes, decide whether to use Bastille 
+	interactively or non-interactively.  First-time users must 
+	run Bastille interactively to create a configuration profile, 
+	unless your distribution shipped with pre-built configuration files, 
+	ex: DMZ.config. That can be accesses with the "-f" option  Please allot 
+	an hour to read and answer all of the questions. Users of the 
+	Linux Firewall and PSAD modules should allot an additional half hour. 
+
+
+        INTERACTIVE USE:                
+
+        When run interactively, the user interface guides the user through 
+        a series of questions. Each step contains a description of the 
+        security decision involved in hardening a system. Each question 
+        describes at a high-level, the cost/benefit of each decision. 
+
+        NON-INTERACTIVE USE:
+
+        Security hardening can be performed directly through the 
+        configuration engine. This method is useful for duplicating a 
+        security configuration onto multiple machines that have the same 
+        operating system and applications installed.
+
+        The configuration engine uses a pre-defined configuration file. 
+        This option can either use the file created in the default location 
+	by an interactive session, or with an alternative one, specified by the "-f"
+	option. 
+
+Step 3: Follow the appropriate process (Interactive or Non-interactive) listed
+        below based on your decision in Step 2.
+
+       INTERACTIVE PROCEDURE:
+
+       1. Decide which interface to use: 
+          Two interfaces are available, an X interface implemented via Perl/Tk, 
+          and a text-based interface implemented with Perl/Curses. Both
+          interfaces are available on Linux, but the Perl/Tk interface is the
+          only one that can be used on HP-UX.
+              A. X interface implemented via Perl/Tk 
+  	            - requires an X server
+	            - is easier to use and offers the user random access 
+                      between question modules. 
+                    - provides "completed indicators" to show the user's 
+                      progress.
+		    - X11 traffic can be tunneled over an encrypted channel if
+		      you use the ssh -X option.  See ssh(1) form more detail.
+
+              B. Text-based interface implemented with Perl/Curses 
+	            - does not have all the functionality of the other 
+                      interface, but is lighter weight.
+                    - useful for hardening machines on which no X client is 
+                      installed. 
+
+        2. Start Bastille:
+           Type 
+              /usr/bin/bastille   (Linux)
+                      or 
+              /opt/sec_mgmt/bastille/bin/bastille  (HP-UX)
+           to start the tool using the X interface implemented via Perl/Tk, 
+           or, type 'bastille -c' to start the tool using the text interface 
+           implemented via Perl/Curses. 
+
+           Using either interface, only the categories of questions relevant 
+           to the current configuration will be displayed. 
+   
+        3. Answer the questions:  
+           The questions are categorized by function, and check marks are used
+           as completed indicators to note whether a category has been 
+           finished. This allows a user to track his/her progress through the
+           program.
+
+           Not all of the questions apply to both Linux and HP-UX, so you will 
+           only be asked the ones that apply to your operating system that 
+           relate to tools that are installed. When answering questions, you 
+           can use the "Explain More/Explain Less" button for more or less 
+           verbose explanations. Note: not all questions have both long and 
+           short answers.
+
+        4. Save your configuration and apply changes.
+           At any time, you can use the menu bar to save or load a 
+	   configuration file, however unless the file is saved via the
+	   Save/Apply button, available after all the questions are complete,
+	   and active at the end of the question list, your config file will
+	   contain additional questions that may be irrelevant to the target
+	   system.  This is because until all the questions are answered,
+	   Bastille does not have enough information to fully prune the 
+	   questions to the minimum relevant.  For this reason, when saving
+	   a configuration file for later direct use with the back-end, it is 
+	   clearer to use the Save/Apply save mechanism first.  Also, the 
+           Save/Apply mechanism will always save that copy in the default location.
+
+
+        NON-INTERACTIVE PROCEDURE:
+
+        1. Run Bastille interactively to create a configuration file if one 
+           does not already exist.  A default configuration file is not 
+           provided for all distributions, so the first time Bastille is used, 
+	   it must be run interactively in those cases.
+
+        2. Copy the configuration file to each machine you want to replicate: 
+           Copy the config file from its location on the first machine to the 
+           same location on the other machines. Note: Since some of the 
+           questions are operating system-specific, the same operating system 
+           must be installed on the machines to be duplicated as the machine 
+           where the configuration file was created. 
+                  /etc/Bastille/config                 (Linux) 
+	          /etc/opt/sec_mgmt/bastille/config    (HP-UX) 
+
+        3. Install Bastille on each of the machines to be replicated. Run
+           'bastille -b' on each of the machines being replicated. This can 
+           be done en-masse and the action and error logs can be collected 
+           for later review. 
+
+
+Step 4: Review the log files.
+        To view the logs in real time, use 'tail -f <log_file>' 
+
+        The action log contains the specific steps Bastille performed when 
+        making changes to the system. It is only created if you apply the 
+        changes to the system. 
+             /var/log/Bastille/action-log                (Linux)
+  	     /var/opt/sec_mgmt/bastille/log/action-log   (HP-UX) 
+
+        The error log contains any errors encountered by Bastille while making 
+        changes to the system. It is only created if errors occur during 
+        execution. 
+   	     /var/log/Bastille/error-log               (Linux)
+	     /var/opt/sec_mgmt/bastille/log/error-log  (HP-UX) 
+
+Step 5: Perform the items listed in the "to do" list.
+        After performing the actions it can do automatically, the tool produces
+        a "to do" list that describes remaining actions the user must perform 
+        manually. This includes reboots if any of the changes require a reboot. 
+
+        The actions in the "to do" list must be completed to ensure a secure
+        configuration. Note: The "to do" list is only created when the changes
+        are applied to the system.
+             /var/log/Bastille/TODO               (Linux)
+             /var/opt/sec_mgmt/bastille/TODO.txt  (HP-UX) 
+
+Step 6: (Optional step) Use the "revert" option (bastille -r) if you want to 
+        revert the system files to the state they were in before Bastille was 
+        run. 
+
+        REVERT PROCESS:
+
+        The "revert" feature of Bastille returns the system to the state 
+        it was in before Bastille was run. Note that if any changes to 
+        the system were made in the interim (either manually or by other
+        programs), those changes should be reviewed again to make sure they 
+        still work and have not broken the system or compromised its security. 
+        Before using the revert feature, read the revert-actions script to 
+        ensure the changes will not disrupt your system.  
+         
+        On HP-UX, after running the revert option, check the "to revert" file 
+        for any manual actions that must be performed to complete the revert
+        process. The file is located in 
+            /var/opt/sec_mgmt/bastille/TOREVERT.txt   (only available on HP-UX)
+
+        Note:  Besides some firewall options, reverting the system is the only
+        way Bastille will make a system less secure.
+
+
+
+REMOVING THE SOFTWARE:
+
+When Bastille is removed from a system, it does not revert the system to
+the state it was in before Bastille was run. Instead, removal of the software
+leaves behind the revert-actions script. This allows the administrator to 
+revert the configuration files that Bastille has performed without having 
+Bastille installed.  In many cases, Bastille changes are recorded at the file 
+level, so the revert-actions script is only able to revert the files which have
+been modified.  In other cases, Bastille makes more granular changes which can 
+be reverted programmatically even if you have made your own intervening changes
+in the same file.  For example, permissions can be reverted to their original 
+form even if you have modified the file on which the permissions were changed.
+
+1. Use swremove to remove Bastille from an HP-UX machine.
+
+2. (Optional) To revert changes on a system where Bastille has been removed:
+      A. cd /var/log/Bastille/revert/           (Linux)
+        	or
+         cd /var/opt/sec_mgmt/bastille/revert/  (HP-UX)
+      B. chmod 0500 revert-actions
+      C. ./revert-actions
+      D. mv revert-actions revert-actions.last
+
+3. On HP-UX, check whether a "to revert" list has been created. If it
+   exists, perform the actions in the list to complete the "revert" 
+   process. 
+      /var/opt/sec_mgmt/bastille/TOREVERT.txt  (only available on HP-UX)
+
+SECURITY-STATUS REPORTING
+
+Starting in bastille 3.0, Bastille can report the status of a system without
+making changes.  This functionality is available with either the --assess or 
+--assessnobrowser options.  The former will also bring up the report in a 
+local browser, the latter, will simply save the reports in the file locations 
+below for later viewing.
+
+
+GENERAL USE TIPS:
+
+1. The changes Bastille makes have the potential to cause other software
+   to stop working. Therefore, the recommended method for using Bastille
+   is to make the changes in a non-production environment, then fully test
+   all production applications after Bastille is applied before putting
+   the systems into production.
+   
+2. On HP-UX machines, don't run Bastille during a Software Distributor 
+   operation (especially swinstall and swremove) because it may cause 
+   file-lock errors. 
+
+3. On HP-UX machines, don't run Bastille any time a system is being heavily 
+   used (especially things that modify system configuration). During this
+   time, Bastille might not be able to get exclusive access to some of the 
+   files it needs, so some changes might not be made. If this happens, run 
+   'bastille -b' when the machine is quiet to re-apply the changes.
+
+4. Unless you patch your system, it can be compromised even though you use this 
+   program. Therefore, it is critical to install the latest patches on your 
+   system to ensure that it is as secure as possible. 
+
+   HP-UX uses the Security Patch Check tool to help with this process. 
+   (Bastille will help with the installation of the tool.) 
+
+   Red Hat Linux maintains lists of patches that are required for each version 
+   of their Linux Distribution. The lists can be found in the errata section
+   of their web site (http://www.redhat.com/apps/support/errata/). You should 
+   download all of the security updates listed for your version. Note: Each 
+   patch is signed with a private key to help ensure that these patches are the 
+   original ones. You can check these signatures by downloading Red Hat's 
+   public keys and verifying signatures on packages.
+
+   Other Linux vendors also provide some patching support. Please check
+   their web sites for details.
+
+   Bastille can help keep your machine locked down.  Since some patches and 
+   software can return settings to their default values, you should re-run 
+   Bastille to re-apply the lockdown and keep your machine secure.
+
+
+5. Bastille should be rerun whenever new software, OS revisions or patches are
+   installed.  It should also be rerun any time customizations are made that  
+   might loosen security. Also, on HP-UX, if swverify is run using either the 
+   -x fix=true option or -F option to run vendor-specific fix scripts, 
+   then Bastille should be rerun.
+
+
+LOCATION OF KEY FILES:
+
+The configuration file contains the answers to the most recently saved session. 
+      /etc/Bastille/config                (Linux)
+      /etc/opt/sec_mgmt/bastille/config   (HP-UX) 
+
+The error log contains any errors Bastille encountered while making changes to 
+the system. 
+     /var/log/Bastille/error-log               (Linux)
+     /var/opt/sec_mgmt/bastille/log/error-log  (HP-UX) 
+
+The action log contains the specific steps that Bastille performed when making 
+changes to the system.
+     /var/log/Bastille/action-log               (Linux)
+     /var/opt/sec_mgmt/bastille/log/action-log  (HP-UX)
+
+The "to do" list contains the manual actions that remain for the user to 
+perform to ensure the machine is secure.
+    /var/log/Bastille/TODO               (Linux)
+    /var/opt/sec_mgmt/bastille/TODO.txt  (HP-UX)
+ 
+The revert-actions script is part of the "revert" feature. It returns the files
+which Bastille changed to the state they were in before Bastille was run. 
+    /var/log/Bastille/revert-actions                  (Linux)
+    /var/opt/sec_mgmt/bastille/revert/revert-actions  (HP-UX)
+
+The "to revert" file contains the manual actions that must be performed by
+the user to finish reverting the machine to the state it was  in before 
+Bastille was run.
+    /var/opt/sec_mgmt/bastille/TOREVERT.txt  (available on HP-UX only)
+
+These  are  the  assessment report locations.  They are formatted HTML, text,
+and a Bastille "config-file" respectively.
+    /var/log/Bastille/Assessment/assessment-report.html  (Linux)
+    /var/log/Bastille/Assessment/assessment-report.txt  (Linux)
+
+    /var/log/Bastille/Assessment/assessment-report-log.txt  (Linux)
+    /var/opt/sec_mgmt/bastille/log/Assessment/assessment-report.html  (HP-UX)
+
+    /var/opt/sec_mgmt/bastille/log/Assessment/assessment-report.txt  (HP-UX)
+    /var/opt/sec_mgmt/bastille/log/Assessment/assessment-report-log.txt  (HP-UX)
+
+This file contains information about any configuration drift the system had
+experienced  since  the  last  Bastille run.  This file will only be created when
+there has been an earlier Bastille-configuration applied to the system.
+	/var/log/Bastille/Assessment/Assessment/Drift.txt  (Linux)
+	/var/opt/sec_mgmt/bastille/log/Assessment/Drift.txt  (HP-UX)
+
+
+TROUBLESHOOTING:
+
+   1. Changes made by Bastille might cause other software to stop working. To 
+      troubleshoot, run 'bastille -r' to revert the system to the state it
+      was in before Bastille was run, then check to see whether the problem
+      has been eliminated.
+	 
+   2. $DISPLAY not set, cannot use X 
+      The user asked for the X interface, but the $DISPLAY environment variable 
+      was not set. Set the environment variable to the desired display to 
+      correct the problem.
+
+   3. System is in original state...
+      The user attempted to revert changes that Bastille made using the "-r" 
+      option, but there were no changes to revert.
+		
+   4. Must run Bastille as root
+      Bastille must be run as the root user since the changes it makes affect 
+      system files, etc.
+
+   5. Problems opening, copying, or reading files
+      Error messages citing problems performing these operations are usually 
+      related to NFS file systems that do not trust the root user on the local 
+      machine. Please consult the "options" section in the fstab man page for 
+      details.
+
+   6. Errors related to individual configuration files 
+      Errors complaining about individual configuration files indicate that a 
+      system has been too heavily modified for Bastille to make effective 
+      changes, or the files, locations, or permissions of the Bastille 
+      installation directories have been changed. 
+
+   7. On HP-UX, If HP Secure Shell locks you out of your system immediately 
+      when passwords expire, you may need a PAM patch:
+      PHCO_24839(HP-UX 11.11).
+
+   8. Bastille configures a firewall.  It uses IP-chains on Linux and IPFilter
+      on HP-UX.  The most common conflicts are with firewalls.  When a network 
+      service is not working that Bastille did not turn off explicitly, you
+      should make sure the firewall rules will pass the ports you need.
+  
+
+
+
+QUESTION MODULES:
+
+The questions are categorized by function. Each module applies to both
+operating systems unless it is specifically mentioned as being "HP-UX
+only" or "Linux only".
+
+
+
+Question Module       Operating System            Description
+
+Patches               HP-UX only          Installs and configures applications 
+					  to help with security-bulletin-compliance
+					  checking.
+
+FilePermissions                           Performs SUID and other permission 
+					  tuning.
+
+AccountSecurity                           Configures login settings and access 
+					  to cron.
+
+BootSecurity          Linux only          Configures Linux-specific booting 
+					  issues.
+
+SecureInetd                               Turns off unneeded Inetd services. 
+
+DisableUserTools      Linux only          Disables tools that might be useful 
+					  to an intruder (e.g. compiler). 
+
+ConfigureMiscPAM      Linux only          Configures login services that use 
+					  Pluggable Authentication Modules. 
+
+Logging               Linux only          Creates and configures logging to  
+					  help detect intrusion attempts.
+
+MiscellaneousDaemons                      Turns off services that are often 
+					  unneeded or are a security risk.
+
+Sendmail                                  Configures mail to be more secure, 
+					  or allows the user to disable it.
+
+DNS                                       Turns off, or configures DNS to be 
+					  more secure.
+
+Apache                                    Configures Apache web server to be 
+					  more secure.
+
+Printing              Linux only          Configures printing to be more 
+					  secure. 
+
+FTP                                       Configures FTP servers to be more 
+					  secure.
+
+HP-UX                 HP-UX only          Performs security configuration 
+					  actions that are unique to the
+				          HP-UX platform.
+
+TMPDIR                Linux only          Configures user accounts to avoid 
+					  using /tmp for temporary files.
+
+IPFilter              HP-UX only          Creates an IPFilter-based firewall.
+
+Firewall              Linux only          Creates an IP-chains-based firewall. 
+
+PSAD                  Linux only          Configures the Bastille firewall 
+					  rules to become a Port Scan Attack 
+					  Detector for use with the Bastille 
+					  Firewall created in the Firewall
+			             	  section.
+
+
+
+
+
+GLOSSARY:
+
+   chroot jail - restricts a process to only be able to access a subtree of 
+	 	 a file system. 
+   DNS         - The Domain Name System is a distributed Internet directory 
+                 service. DNS is used mostly to translate between domain names 
+                 and IP addresses, and to control Internet email delivery.
+   O/S         - Operating system.
+
+
+
+DOCUMENT CREDITS:
+
+HP Bastille Development Team - Content
+Javier Fernandez-Sanguino Pena - Content
+HP MSL Support Team - Organization and Formatting 

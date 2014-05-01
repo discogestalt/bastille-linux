@@ -1,0 +1,451 @@
+#!/opt/perl/bin/perl -w
+
+#Copyright © 2007-2008 Hewlett-Packard Development Company, L.P.
+#
+#License terms for use of the HP checkperms script:
+#
+#1. If you have obtained this HP checkperms script as part of the "CIS 1.4 
+#HP-UX Benchmark" materials distributed by the Center for Internet Security
+#("CIS") your use of the HP checkperms script is governed by the CIS "Terms
+#of Use Agreement" accompanying the CIS 1.4 HP-UX Benchmark materials.
+#
+#2. In all other cases, your use of the HP checkperms
+# script is governed by the terms and conditions contained in the "GNU
+# General Public License - Version 2" (see the "COPYING" file distributed
+# with HP-UX Bastille for the GPL v2 license text or
+# http://www.gnu.org/licenses/old-licenses/gpl-2.0.html).
+
+
+use strict;
+use warnings;
+use English;
+use File::Find ();
+use Getopt::Long;
+
+my %ignoreThese=();
+my $officialLocation="/opt/sec_mgmt/bastille/bin/checkperms";
+my $fileWithFilenamesToIgnore = '/etc/opt/sec_mgmt/bastille/IgnoreTheseFilePerms';
+my $reportFile = "/var/opt/sec_mgmt/bastille/checkpermsReport";
+my $depotLocation="";
+my $verboseMode=0;
+my $currentProgram = $0;
+my $origArgs="@ARGV";
+
+#Initialize command line options
+my $debug;
+
+if( Getopt::Long::GetOptions( "i:s"     => \$fileWithFilenamesToIgnore,
+                              "o:s"     => \$reportFile,
+                              "s:s"     => \$depotLocation,
+                              "v"     => \$verboseMode,
+			      "debug" => \$debug) ) {
+} else {
+    &usage;# parse error
+}
+
+# ensure older scripts are superseded correctly
+if ((-e $officialLocation) and ($currentProgram ne "$officialLocation")) {
+    &logMessage("NOTE", "Found newer version, using $officialLocation from $currentProgram with arguments $origArgs");
+    exec("$officialLocation $origArgs");
+}
+
+%ignoreThese = &ignoreTheseFiles($fileWithFilenamesToIgnore);
+
+# special mode to only check a depot
+if ($depotLocation ne "") {
+   my $results="The following files are being delivered with incorrect permissions:\n";
+   my $count=0;
+   my $swlistCmd = 'unset LANG; sh -c "/usr/sbin/swlist -l file -a mode -a type @ ' . $depotLocation . ' "';
+   if (open (SWLISTOUT, " $swlistCmd |")) {
+      my (@lines) = <SWLISTOUT>;
+      close SWLISTOUT;
+
+      # alternative: find all world-writable files/directories/pipes w/o sticky bit
+      #@lines = grep (/[^1][0-7][0-7][2367]\s*[fdp]\s*$/, @lines);  
+
+      @lines = grep (!/^\s*#/, @lines); #remove commented lines
+      @lines = grep (!/^\s*$/, @lines); #remove blank lines
+      # find all world-writable (sticky bits will have to be manually ignored)
+      @lines = grep (/[2367]\s*[fdp]\s*$/, @lines);  
+      for my $line (@lines) {
+         $line=~s/^\s*//;
+         my ($fs,$filename,$mode,$type)=split(/\s+/,$line);
+         &logMessage("DEBUG", "fs=$fs,fn=$filename,mode=$mode,type=$type");
+         unless ((exists $ignoreThese{$filename}) and ($ignoreThese{$filename} eq $mode)) {
+            $results .= "	$line"; 
+            $count++;
+         } else {
+             &logMessage("DEBUG", "$filename ignored.");
+         }
+      }
+   } else {
+      &logMessage("ERROR", "Unable to swlist $depotLocation.");
+   }
+
+   if ($count > 0) {
+      &writeReport($results, $reportFile);
+   }
+
+   exit $count;
+}
+
+#Get the Issues the IPD is already complaining about
+&logMessage ("NOTE", "Finding Installed Product Database (IPD) Discrepancies");
+my (@IPDsuidList, @IPDwwList);
+&getIPDIssues; #populates  @IPDsuidList, @IPDwwList
+
+#Get the total IPD File List
+&logMessage ("NOTE", "Reading Full IPD");
+my %IPDFiles = &getIPDFiles;
+
+#Get the discrepancies that aren't in the IPD
+my (%FSsuidList, %FSwwList);
+my $wwand=" world-writable and";
+if ($verboseMode) {
+   $wwand="";
+}
+&logMessage ("NOTE", "Finding$wwand SUID files not in IPD");
+&getFSFiles; #populates @FSsuidList, @FSwwList
+
+%FSsuidList=&trimInaccessableFiles(\%FSsuidList);
+%FSwwList=&trimInaccessableFiles(\%FSwwList);
+
+my $overallResults = ("\n\n---------------------------------------------------------------------------------------------------\n".
+    "Installed-Product-Database-WW/SUID-delivered vs. current-status discrepancies:\n".
+    "---------------------------------------------------------------------------------------------------\n".
+    "Note this list is only useful for policy checks, as the IPD is not tamper-proof: \n\n" .
+    "\n  SUID/SGID additions:\n\n     ". join ("\n     ",@IPDsuidList) .
+    "\n\n  World-writeable files:\n\n     ". join ("\n     ",@IPDwwList) .
+    "\n---------------------------------------------------------------------------------------------------\n".
+    "Unpackaged world-writeable directories, without the sticky bit, and SUID files:\n".
+    "---------------------------------------------------------------------------------------------------\n".
+    "\n  SUID/SGID files:\n\n     ". &formatFiles(\%FSsuidList) .
+    "\n\n  World-writeable files, and world-writable, non-sticky-bit directories:\n\n     ".
+      &formatFiles(\%FSwwList) ."\n");
+
+my $totalCount = &getIssueCount(\@IPDsuidList, \@IPDwwList, \%FSsuidList, \%FSwwList);
+&writeReport($overallResults, $reportFile);
+exit $totalCount;
+
+sub getIssueCount($$$$){
+    my $IPDsuidRef = $_[0];
+    my $IPDwwRef = $_[1];
+    my $FSsuidRef = $_[2];
+    my $FSwwRef = $_[3];
+    
+    my @IPDsuidLocal = @$IPDsuidRef;
+    my @IPDwwLocal = @$IPDwwRef;
+    my %FSsuidLocal = %$FSsuidRef;
+    my %FSwwLocal = %$FSwwRef;
+    
+    my $IPDsuidCount = @IPDsuidLocal;
+    my $IPDwwCount = @IPDwwLocal;
+    my $FSsuidCount = (keys %FSsuidLocal);
+    my $FSwwCount = (keys %FSwwLocal);
+    
+    &logMessage("DEBUG","IPDsuid: $IPDsuidCount, IPDww: $IPDwwCount, FSsuid: $FSsuidCount, FSww: $FSwwCount");
+    my $totalCount = $IPDsuidCount + $IPDwwCount + $FSsuidCount + $FSwwCount;
+    return $totalCount;
+}
+
+sub writeReport($$){
+    my $results = $_[0];
+    my $file =$_[1];
+    
+    use File::Basename;
+    use File::Path;
+        
+    if ($file eq "-") {
+        print($results);
+    } else {
+       my $dirname = dirname($file);
+       unless ((mkpath($dirname)) or (-d $dirname)) {
+          &logMessage("WARNING", "Unable to create report directory: $dirname");
+       }
+       if (open(REPORT,">$file")) {
+            &logMessage("NOTE","Generating Report at: $file");
+            print(REPORT $results);
+            close(REPORT);
+        } else {
+            &logMessage("NOTE","Unable to write to file: $file, writing report to terminal.");
+            print($results);
+        }
+    }
+}
+
+# Clear inaccessible files from the results as they are protected by parent perms
+#Note this function only works with the FS variables as the IPD ones have extra contents
+# Also, this currently takes long-list format, but at some point, may switch to hash indexed by
+# short names with the long-names as contents for the whole program.
+
+sub formatFiles($){
+    my $fileHashReference=$_[0];
+    my %fileHash = %$fileHashReference;
+    my $outputFiles="\n";
+    foreach my $fileName (sort keys(%fileHash)) {
+        my $fileMode = $fileHash{$fileName} ;#& 07777 ;
+        $outputFiles .= "$fileName has mode ". $fileMode . " \n"
+    }
+    return $outputFiles;
+}
+    
+sub trimInaccessableFiles($){
+    my $fileListRef = $_[0];
+    my %fileList= %$fileListRef; #Local pointer to global variable
+    
+    &logMessage("DEBUG", "Begin inaccessible Trim with array:" . keys(%fileList));
+    foreach my $flaggedFile (keys(%fileList)) {
+        &logMessage("DEBUG", "Looking at $flaggedFile to see if parent-protected");
+        my $pathAncenstor = $flaggedFile;
+        while ($pathAncenstor =~ /^((?:\/[^\/]+)+)\/[^\/]+\/?$/){#walk up the file path
+            $pathAncenstor =~ s/^((?:\/[^\/]+)+)\/[^\/]+\/?$/$1/;
+            my $mode = &getMode($pathAncenstor);
+            &logMessage("DEBUG", "Climbing path to: $pathAncenstor with mode $mode");
+            if (($mode =~ /^\s*\d{2,3}0\s*$/)) {
+                foreach my $file (keys(%fileList)){
+                    if ($file =~ /^\s*$pathAncenstor/) {
+                        delete $fileList{$file};
+                        &logMessage("DEBUG", "Removed $file from list");
+                    }
+                }
+                &logMessage("DEBUG", "Trimmed for path: $pathAncenstor");
+                &logMessage("DEBUG", "Trimmed list to:" . keys(%fileList));
+            }
+        }
+    }
+    return %fileList;
+}
+sub getMode($){
+    my $filename = $_[0];
+    my $perms = (stat("$filename"))[2] & 07777;
+    my $oct_perms = sprintf "%lo", $perms;
+    return($oct_perms);
+}
+
+#populate IPDFiles directly to save memory
+sub getIPDFiles {
+    my $cursor;
+    my @lines=();
+    my %IPDListing=();
+    my $swlistCmd = 'unset LANG; sh -c "swlist -l file';
+    open (IPDFILESH, " $swlistCmd |");
+    (@lines) = <IPDFILESH>;
+    close IPDFILESH;
+    @lines = grep (!/^\s*#/, @lines); #remove commented lines
+    @lines = grep (!/^\s*$/, @lines); #remove blank lines
+    foreach $cursor (@lines) {
+        chomp $cursor;
+        #remove left part of lines through the colon, remove whitespace
+        $cursor =~ s/^.*:\s*(.*?)\s*$/$1/;
+        if (defined($cursor)){
+            $IPDListing{$cursor}= "present";
+            &logMessage("DEBUG", "Added $cursor value of present ")
+        }
+    }
+    @lines=(); #making sure this memory is free
+    return %IPDListing;
+}
+
+sub getFSFiles {
+    # Set the variable $File::Find::dont_use_nlink if you're using AFS,
+    # $File::Find::dont_use_nlink=1;
+    
+    # for the convenience of &wanted calls, including -eval statements:
+    
+    use vars qw/*name *dir *prune/;
+    *name   = *File::Find::name;
+    *dir    = *File::Find::dir;
+    *prune  = *File::Find::prune;
+    
+    use Cwd ();
+    use Fcntl ':mode';
+    my $cwd = Cwd::cwd();
+    
+    # Traverse desired filesystems
+    File::Find::find({wanted => \&wanted}, '/');
+    %FSwwList=removeFSFilesFromList(\%FSwwList,$verboseMode);
+    %FSsuidList=removeFSFilesFromList(\%FSsuidList,0);
+    return;
+    
+    sub wanted {
+        my ($dev,$ino,$mode,$nlink,$uid,$gid);
+
+        (($dev,$ino,$mode,$nlink,$uid,$gid) = lstat($_)) &&
+        ($dev < 0) &&
+        ($File::Find::prune = 1) &&
+        ($dev >= 0) &&
+        ($File::Find::prune = 1)
+        ||
+        ((
+            ! (($mode & 01000) == 01000) &&
+            (($mode & 02) == 02) &&
+            -d _
+        )
+        ||
+        (
+            (($mode & 02) == 02) &&
+            -f _
+        )
+    ) && ( $FSwwList{"$name"} = sprintf("%o",S_IMODE($mode)));
+
+        (($dev,$ino,$mode,$nlink,$uid,$gid) = lstat($_)) &&
+        ($dev < 0) &&
+        ($File::Find::prune = 1) &&
+        ($dev >= 0) &&
+        ($File::Find::prune = 1)
+        ||
+            (
+            (($mode & 04000) == 04000)
+            ||
+            (($mode & 02000) == 02000)
+        ) &&
+        -f _
+        && ( $FSsuidList{"$name"} = sprintf("%o",S_IMODE($mode)));
+    }
+}
+
+sub removeFSFilesFromList($$) {
+    my $HashRef = $_[0];
+    my $includeIPDFiles = $_[1];
+    my %FSlist= %$HashRef;
+    
+    foreach my $checkFile (keys(%FSlist)) {
+        chomp $checkFile;
+        &logMessage("DEBUG", "FS processing $checkFile");
+        if (
+            (&userSaysCheck($checkFile,$FSlist{$checkFile})) and
+            ($includeIPDFiles or
+            (not(defined($IPDFiles{$checkFile})) or ($IPDFiles{$checkFile} ne "present" )))
+           ) {
+            &logMessage("DEBUG", "Should check $checkFile  ");
+        } else {
+            &logMessage("DEBUG", "Should not check $checkFile");
+            delete $FSlist{$checkFile};
+        }
+    }
+    return %FSlist;
+}
+
+
+sub getIPDIssues{ #populates @suidList, @wwList, 
+    my $optionList=
+      "-x check_contents=false -x check_requisites=false ".
+      "-x check_scripts=false -x check_volatile=true ";
+    my $swverifyOutput = `unset LANG; /usr/sbin/swverify $optionList \\* 2>&1 | grep swjob`;
+    if ($swverifyOutput =~ /command "swjob (-a\s+log\s+\S+\s+@\s+\S+:\/).*"./){
+        my $swjobCmd = $1;
+        my $swjobOut = `unset LANG; /usr/sbin/swjob $swjobCmd`;
+        my $exit_value = ($? >> 8);
+        if ($exit_value ne 0 ){
+            &logMessage("DEBUG","Received Exit Code: $exit_value from swjob");
+    #        &logMessage("ERROR","Could not find IPD entries, results may be incomplete.");
+        }
+            
+        $swjobOut =~
+            s/(?:ERROR|WARNING):\s*(?:File|Directory)\s+"(\S+)"\s+should\s+have\s+mode\s+"(\d{3,4})".+?mode is\s+"(\d{3,4})/Verification Intermediate Result: $1, $2, $3/sg;
+        my @swjobOut = split (/\n/,$swjobOut);
+        my $result='';
+    
+        foreach  $result ( grep (/Verification Intermediate Result: /,@swjobOut)) {
+            $result =~ /Result: (\S+), (\d{3,4}), (\d{3,4})/;
+    
+            my $file = $1;
+            my $origMode = $2;
+            my $finalMode = $3;
+        
+            my $message = "$file now has mode: $finalMode, though it was delivered with: $origMode";
+        
+            &logMessage("DEBUG", "Discrepancy: $message");
+        
+            if (&userSaysCheck($file, $finalMode)){
+                #Flag the addition of not-already-present suid/sgid bits, don't count sticky
+                if ((($origMode =~ /^1?\d{3}$/) and ($finalMode =~ /[765432]\d{3}/)) or
+                    (($origMode =~ /^4\d{3}$/) and ($finalMode =~ /[7632]\d{3}/)) or
+                    (($origMode =~ /^2\d{3}$/) and ($finalMode =~ /[7654]\d{3}/)) ) {
+                    push (@IPDsuidList, $message);
+                    &logMessage("DEBUG", "suid relevance for $message");
+                }
+                if (($origMode =~ /^\d{2,3}[541]$/) and ($finalMode =~ /^\d{2,3}[7632]$/)){
+                    push (@IPDwwList, $message);
+                    &logMessage("DEBUG", "ww  relevance for $message");
+                } else {
+                    &logMessage("DEBUG", "No ww suid relevance for $message");
+                }
+            }
+        }
+    } else {
+        &logMessage("WARNING","Unable to run swjob and/or swverify, IPD issues list will likely be incomplete");
+        &logMessage("DEBUG"," swverify output: $swverifyOutput");
+    }
+}
+
+# Format for ignore file is lines with:
+# <file>,<mode>
+# Returns a hash of allowed modes, where each file can have
+# *one* allowed mode, deviating from the IPD.
+
+sub ignoreTheseFiles($) {
+    my $ignoreFile = $_[0];
+    my $item='';
+    my %processedItems;
+    my $linecount = 0;
+    
+    if (-e $ignoreFile){
+        &logMessage("NOTE", "Reading Ignore File: " . $ignoreFile);
+        if (open IGNORE, $ignoreFile) {
+            my @itemsToIgnore=<IGNORE>;
+            close IGNORE;
+            foreach $item (@itemsToIgnore) {
+                $linecount++;
+                # Regex looks for above format, handling filenames with spaces
+                # (though not ending in spaces) and comment #'s correctly
+                if ($item =~ /^(?:(?:\s*#.*)|(?:(\/[^#,]+\S)\s*,\s*(\d{3,5})\s*(#.*)*))$/){
+                    $processedItems{$1} = "$2";
+                    &logMessage("DEBUG", "ignoring file: $1 at mode $2");
+                } elsif ( $item !~ /^\s*#/) {
+                    &logMessage("WARNING", 'Ignoring invalid line # '. $linecount .
+                                ' in '. $ignoreFile . ' Format is <file>, <mode>');
+                }
+            }
+            return %processedItems;
+        } else {
+            &logMessage("WARNING","Could not read ignore file: $ignoreFile , so not ignoring any files.");
+        }
+    } else {
+        &logMessage("NOTE", "No ignore file at: " . $ignoreFile . ", so " .
+                    "listing all relevant files.");
+    }
+    return (); # If there was a problem reading the file
+}
+sub usage() {
+    &logMessage("ERROR","Usage:\n".
+                "checkperms [-i <list of files to ignore>] [-o {<filename>|-}]");
+}
+
+sub userSaysCheck($$){
+    my ($file, $filemode)= @_;
+    if ( (defined($ignoreThese{$file})) and
+        ( $ignoreThese{$file} == $filemode) ){
+        &logMessage("DEBUG", "Should ignore: $file");
+            return 0; #Don't Check
+    }
+    return 1; #Check This
+}
+
+
+sub logMessage ($$) {
+    my $type = $_[0];
+    my $info = $_[1];
+    if ($type eq "DEBUG") {
+        if ($debug) {
+            print (STDERR "DEBUG:   $info \n");
+        }
+    } elsif ($type eq "WARNING") {
+        print (STDERR "WARNING: $info \n");
+    } elsif ($type eq "NOTE") {
+        print ("NOTE:    $info \n");
+    } else {
+        print (STDERR "ERROR:    $info \n");
+        exit 1;
+    }
+}

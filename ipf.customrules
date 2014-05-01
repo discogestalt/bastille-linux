@@ -1,0 +1,17 @@
+####################################################
+# These rules will allow connections initiated from 
+# this host along with the return connection        
+                                                    
+pass out quick proto icmp all keep state            
+pass out quick proto tcp all keep state             
+pass out quick proto udp all keep state             
+                                                    
+# End allow outgoing rules
+####################################################
+
+# These rules specifically do not log netbios udp or portmapper
+# packets because these protocols tends to be very noisy on networks
+block in quick proto udp from any to any port = netbios_ns
+block in quick proto udp from any to any port = netbios_dgm
+block in quick proto udp from any to any port = portmap
+

@@ -1,0 +1,122 @@
+FILE: FTP.pm
+
+LABEL: ftpgeneral
+SHORT_EXP:"FTP is widely considered to be fairly dangerous, but even
+security-conscious sites might still run it because of the perceived
+difficulty in educating users about alternatives.  Available
+alternatives include:
+
+ - secure copy, which encrypts names, passwords and traffic
+ - web-based file archives, a much safer way of offering files to the public
+
+The lack of widespread, free, Windows-based secure copy clients only
+exacerbates the problem.  FTP is dangerous for several reasons, including:
+
+ 1) All passwords travel in the clear across the connection, allowing any
+    intermediate hosts (and usually every host on the source and destination's
+    local area network) to \"sniff\" unencrypted passwords.
+
+ 2) Ftp daemons typically need to run with root privileges, and most of the
+    common ones have been found to have a multitude of security vulnerabilities
+    over the course of their existence.  For instance, the ftp daemon included
+    with RedHat 6.0 has had two major updates to close security holes since
+    RH6.0 was released.  Earlier in this session, we updated your wu-ftp to
+    the most recent one that Redhat advertises
+"
+QUESTION:
+REQUIRE_DISTRO: LINUX DB SE TB
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: userftp
+NO_CHILD: userftp
+PROPER_PARENT: printing_osx
+
+LABEL: userftp
+SHORT_EXP:  "Allowing users to access the FTP server from anywhere on the
+Internet present a security problem, and you should disallow this access if
+possible.  The problem is that many users feel they need FTP access.  You
+can disable user use of the ftp daemon, leaving anonymous download still
+possible.  We do not recommend this for most site admins, unless they have
+management's approval and are prepared to educate their users."
+LONG_EXP: "The least safe configuration for an ftp daemon is one which
+allows anyone to connect (via \"anonymous\" mode) and upload files.  Most of
+the attacks that let an intruder gain root access on your box require that
+s/he is able to upload files.  If you don't have anonymous ftp with upload
+capability, the intruder cannot use those attacks unless s/he can get a user
+name and password.  For the sake of safety, this mode is shut off by default
+in most wu-ftpd configurations.
+
+The next least safe configuration is the one in which users with accounts
+on the system are allowed to access the server from the entire Internet.
+The dangers stem from 1) clear text passwords being sniffed on the Internet
+and 2) common vulnerabilities in ftp daemons that are allowed if anyone has
+upload privileges.
+
+Unfortunately, disabling this configuration is difficult, as this is what
+many sites feel a need to use their ftp server for.  With a well
+educated user base (and secure copy clients for their platforms), this
+functionality is unnecessary.  Unfortunately, educating your user base may
+be impossible at your site, especially if there are a large number of users.
+If this is a 3 account server, that kind of user education may be quite
+possible."
+QUESTION: "Would you like to disable user privileges on the FTP daemon? [N]"
+QUESTION_AUDIT: "Are user privileges on the FTP daemon disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: anonftp
+NO_CHILD: anonftp
+PROPER_PARENT: ftpgeneral
+
+LABEL: anonftp
+SHORT_EXP: "The last major FTP server functionality that we allow you to
+disable in the name of site security is anonymous download access.  As we have
+noted before, this functionality can be mimicked via the traditionally more
+secure Apache web server.  Any files that you want accessible to the world
+can be placed on an easy-to-configure web server."
+QUESTION: "Would you like to disable anonymous download? [N]"
+QUESTION_AUDIT: "Is anonymous download disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: ftpusers
+NO_CHILD: ftpusers
+SKIP_CHILD: ftpusers
+PROPER_PARENT: userftp
+
+LABEL: ftpusers
+SHORT_EXP:  "ftpusers file allows the administrator to set accounts that shall not
+be allowed to log in via the ftpd.  Default system users should not normally be
+allowed access to the system through the ftpd, as it sends the username and
+password in clear text over the network.  Bastille will disallow ftp logins to
+a WU-FTPD server from the following users: root, daemon, bin, sys, adm, uucp, lp,
+nuucp, hpdb, and guest.  If you have a compelling reason to allow these users
+ftp access, then answer no to this question.  Use this as a secondary measure
+if you have already chosen to deactivate the ftp server."
+QUESTION: "Would you like to disallow ftpd system account logins?"
+QUESTION_AUDIT: "Are ftpd system account logins prohibited?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: ftpbanner
+NO_CHILD: ftpbanner
+PROPER_PARENT: anonftp
+
+LABEL: ftpbanner
+SHORT_EXP:  "ftpbanner provides for a login banner to be presented upon the
+initial access to the FTP server."
+QUESTION: "Would you like to present a ftpd banner upon login to FTP?"
+QUESTION_AUDIT: "Is a FTP banner presented upon login to FTP?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: stack_execute
+NO_CHILD: stack_execute
+PROPER_PARENT: ftpusers

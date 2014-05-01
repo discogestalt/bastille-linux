@@ -1,0 +1,64 @@
+#
+# Generic Chroot Jail Listing for HP-UX
+#
+#  all formats explicitly state ownership and permissions except
+#  slink as they cannot be set by usual functions.
+#  formats:
+#   "dir" makes directory in the jail 
+#    dir path permissions owner group
+#	 dir etc 0555 0 5
+#
+#   
+#   "file" copys source file to destination_dir/destination_file 	
+#    file source destiation_dir destination_file permissions owner group
+#	file /dev/null etc/passwd 0555 root daemon
+#
+#    slink makes a symbolic link pointing to some location in the jail visible
+#     from a location outside of the jail.
+#    	slink var/run/named.pid /var/run/named.pid
+#
+# /etc of chrooted environment
+dir etc 0555 bin bin
+
+# Inserting general files for chroot environment
+file /etc/hosts etc/hosts 0444 bin bin
+file /dev/null etc/passwd 0444 bin bin
+file /etc/services etc/services 0444 bin bin
+file /etc/nsswitch.files etc/nsswitch.conf 0444 bin bin
+
+# /usr for chrooted environment
+dir usr 0555 bin bin
+
+# /usr/lib for chrooted environment
+dir usr/lib 0555 bin bin
+
+# Inserting general libraries for chroot environment
+file /usr/lib/dld.sl usr/lib/dld.sl 0555 bin bin
+file /usr/lib/libdld.2 usr/lib/libdld.2 0555 bin bin
+file /usr/lib/libc.2 usr/lib/libc.2 0555 bin bin
+file /usr/lib/tztab usr/lib/tztab 0444 bin bin
+
+# /usr/sbin for chrooted environment
+dir usr/sbin 0555 bin bin
+
+# /var for chrooted environment
+dir var 0555 bin bin
+
+# /var/tmp for chrooted environment
+dir var/tmp 1777 bin bin
+
+# /var/adm for chrooted environment
+dir var/adm 0555 bin bin
+
+# /dev for chrooted environment
+dir dev 0555 bin bin
+
+# /tmp for chrooted environment
+dir tmp 1777 bin bin
+ 
+
+
+
+
+
+

@@ -1,0 +1,14 @@
+
+Red Hat's latest package of Samba 2.0.8 misbehaves if it
+is started with a TMPDIR environment variable that does
+not refer to a world-writable directory. The patch "smb.patch"
+can be applied to /etc/rc.d/init.d/smb so that Samba starts
+correctly, even if root has a TMPDIR variable set when
+using the init script.
+
+Thanks to Jonathan Marsden for catching this.
+
+http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=41193
+
+-Peter Watkins
+ 17 May 2001

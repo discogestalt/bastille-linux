@@ -1,0 +1,144 @@
+#!/usr/bin/perl 
+##############################################################################
+# Copyright (C) 1999, 2000 Jay Beale, version 2
+# Licensed under the GNU General Public License
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#############################################################################
+
+#############################################################################
+# This is the Bastille Automator Tool for Bastille Linux 1.x.y.  It can be  #
+# used to automate Bastille Linux, using a pre-generated Config File, which #
+# is, generally speaking, just a (possibly editted version of) an input-log #
+# from a previous run.  The default name of that Config File is:            #
+#                                                                           #
+#                  $basePath/DefaultConfig                         #
+#                                                                           #
+#############################################################################
+
+# `/usr/bin/clear`;
+
+use Cwd;
+use File::Copy;
+use English;
+
+# Just needed for Debian installations (jfs)
+push (@INC,"/usr/lib/perl5/site_perl/");
+push (@INC,"/usr/lib/Bastille");
+
+push (@INC,"/usr/lib/perl5/site_perl/5.8.0/i586-linux-thread-multi");
+
+# Change 1.0.3->1.0.4 -- make sure we're running as root
+
+if ( $EUID != 0 ) {
+    print "This script must be run as root!\n";
+    # We don't have an API here, so we need to use die
+    die "${PROGRAM_NAME} must run as root!\n";
+}
+else {
+    chdir "/usr/share/Bastille";
+
+# Make sure at least one of the required files is here
+#if ( (! -f "bastille-firewall") || (! -f "COPYING") ) {
+#    die "It seems that some required files are missing. Re-read README\n";
+#}
+
+## Figure out where we are
+#my ( $basePath ) = cwd;
+#    
+#if ( -e "$basePath/VERSION") {
+#   open(VERSION,"$basePath/VERSION") || die "It seems that some required files are missing. Re-read README\n";
+#   $version = <VERSION>;
+#   close VERSION;
+#}
+
+# make sure we have Curses.pm before using it
+$@ = '';
+eval 'use Curses;';
+if ($@) {
+	print STDERR "ERROR: Curses.pm not installed.  Either run other interface (\n'InteractiveBastille' or 'BastilleChooser') or install Curses.pm.\n";
+	print STDERR "To do the latter (in Debian), install the libcurses-perl package.\n";
+	exit 1;
+}
+
+
+
+# Use the Curses interface
+use Curses;
+use Curses::Widgets;
+
+# Hardcoded List of configurations -- to be replaced by list read from file
+@list = ("Default_Workstation","Default_Workstation_plus_Firewall","Quit");
+
+$window = new Curses;
+
+select_colour($window,'yellow','blue');
+
+#$window -> move(0,10);
+$window -> hline("_",80);
+$window -> addstr(2,28,"$version");
+$window -> addstr(4,15,"Security Hardening Program (for New Installs Only)");
+$window -> addstr(6,13,"Copyright Jay Beale 1999, 2000 Licensed Under the GPL");
+$window -> addstr(9,30,"Brought to you by");
+$window -> addstr(11,14,"Jon Lasser, Jay Beale, and the Bastille Linux Team");
+$window -> addstr(12,26,"(read README for credits)");
+$window -> move(14,10);
+$window -> hline("_",60);
+$window -> addstr(17,30,"Choose a Configuration:");
+$window -> refresh;
+
+$input="test";
+$selection=100;
+while (($input) and ($selection > 99) ){
+   ($input,$selection)= buttons ('window'    => $window,
+                                'ypos'      => 18,
+				'xpos'      => 30,
+				'vertical'  => 1,
+				'buttons'   => \@list,
+				'spacing'   => 1 );
+}
+
+endwin;
+			     
+unless ($selection == $#list) { 
+   $file = $list[$selection];
+}
+else {
+   exit 0;
+}
+
+$basePath = "/usr/share/Bastille";
+$file = "$basePath/" . $file;
+
+die "Couldn't find config file $file!" unless ( -e $file );
+
+# Place $file in /etc/Bastille/config's place.
+
+if ( -e "/etc/Bastille/config" ) {
+    unlink("/etc/Bastille/config") ||  die "Cannot remove \"$basePath/config\"";
+}
+
+copy($file, "/etc/Bastille/config") || die "Cannot write new \"$basePath/config\"";
+
+`BastilleBackEnd`;
+
+print "Bastille is done.  You can find logs in /var/log/Bastille.\n\nPlease reboot your system.\n\n";
+
+} # of else EUID!
+ 
+
+
+
+1;

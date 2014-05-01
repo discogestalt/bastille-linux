@@ -1,0 +1,165 @@
+FILE: Patches.pm
+
+LABEL: spc_run
+SHORT_EXP: "Patching, updating, and configuring software to address known security
+vulnerabilities is one of the most important steps in securing a system.
+Software Assistant(SWA) and Security Patch Check(SPC) are tools which will analyze the software installed on
+this system.  They will report if any relevant security bulletins which have
+been announced by Hewlett-Packard are not currently addressed on this system.
+Bastille has detected that one of them is installed.  If you have SWA version C.01.01
+or later, Bastille will run that or else fall back to SPC.  The output of running that tool
+will be appended to a file and referenced by Bastille's generated TODO list
+so you can perform the necessary steps to ensure your systems' bulletin compliance.
+Note that SPC, if used, may use ftp or http, cleartext protocols, in some cases.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+LONG_EXP: "Patching, updating, and configuring software to address known security
+vulnerabilities is one of the most important steps in securing a system.
+Software Assistant and Security Patch Check are tools which will analyze the software installed on this 
+system.  If you have SWA version C.01.01 or later, Bastille will run that or else fall back to SPC
+to create a security-compliance report.  The security compliance report lists several types of
+problems.  It will: (1) report any patches which are installed on the system
+but have had warnings (recalls) issued by HP, (2) report any security patches
+that have been announced by Hewlett Packard that will fix installed software on
+the system, but have not been applied, (3) report if any currently
+installed patches are not in the proper, \"configured\" state, (4) report software
+that needs to be removed or updated to comply with a bulletin, and (5) list any
+manual actions necessary to bring the server to bulletin compliance.  SWA and SPC
+can download an up-to-date catalog from HP with security and
+patch-warning information.  They can also work through a proxy-type
+firewall.  Also, bulletin compliance requires vigilance, since new
+vulnerabilities are found and fixed on a regular basis.  It is recommended that
+one of these tools be run frequently, such as in a cron job each night (A separate question
+will cover this).  It is also recommended that you subscribe to the HP
+Security Bulletin mailing list.
+Note that SPC, if used, may use ftp or http, cleartext protocols, if a link can not be established 
+via https.
+The output of running this tool will be appended to Bastille's generated
+TODO list so that you can apply the necessary patches.
+
+(MANUAL ACTION REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Should Bastille run SWA/SPC for you?"
+DEFAULT_ANSWER: "Y"
+NO_CHILD: spc_cron_norun
+YES_CHILD: spc_cron_run
+SKIP_CHILD: spc_cron_norun
+YN_TOGGLE: 1
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+REG_EXP: "^Y$|^N$"
+PROPER_PARENT: Title_Screen
+
+LABEL: spc_cron_run
+SHORT_EXP: "Bastille can configure Software Assistant, or Security Patch Check, as appropriate,
+to run on a daily basis using the cron scheduling daemon.  Keeping a system secure requires constant
+vigilance.  Staying up-to-date on security bulletins issued by Hewlett Packard is
+critical, and these tools are the easiest way to make sure
+this system is compliant with the steps required in HP security bulletins.
+In addition, a subscription to HP's security bulletin mailing list is valuable
+to find the latest security fixes from HP.  Note: this question is
+asked whether or not you have Software Assistant, or Security Patch Check installed so
+that Bastille can pre-configure cron to run them  after you have
+installed one.
+
+Note we recommend use of SWA, as SPC may use uses ftp, a cleartext, unauthenticated protocol. 
+
+You may also consider getting notified of all HP security bulletins by
+going to http://www.itrc.hp.com and registering for them by clicking on
+\"maintenance and support for HP products,\" then selecting \"support information
+digests.\""
+QUESTION: "Should Bastille set up a cron job to run SWA or SPC?"
+QUESTION_AUDIT: "Is a cron job to run SWA/SPC set up?"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+NO_CHILD: spc_proxy_yn
+YES_CHILD: spc_cron_time
+SKIP_CHILD: generalperms_1_1
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+REG_EXP: "^Y$|^N$"
+PROPER_PARENT: spc_run
+
+LABEL: spc_cron_norun
+SHORT_EXP: "Bastille can configure Security Patch Check to run daily
+using cron.  Keeping a system secure requires constant vigilance.
+Staying up-to-date on bulletins issued by Hewlett Packard is critical, and
+Security Patch Check is the easiest way to make sure of that.
+In addition, a subscription to HP's security advisory mailing list is valuable
+to find the latest security bulletins from HP, including patched, update, and
+manual fixes.  Note: this question is asked whether or not you have Security
+Patch Check installed so that Bastille can pre-configure cron to run the tool
+after you have installed it."
+QUESTION: "Should Bastille set up a cron job to run SWA/SPC?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: "Y"
+NO_CHILD: generalperms_1_1
+YES_CHILD: spc_cron_time
+SKIP_CHILD: generalperms_1_1
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+REG_EXP: "^Y$|^N$"
+PROPER_PARENT: spc_run
+
+LABEL: spc_cron_time
+SHORT_EXP: "Specify a number between 0 and 23, corresponding to the hour
+in your time zone that is most convenient to run a security bulletin compliance report."
+LONG_EXP: "Specify a number between 0 and 23, corresponding to the hour
+in your time zone that is most convenient to run a security bulletin compliance report. 
+For example, if you specify 0, Security Patch Check will run sometime
+between 12:00am and 12:59am in your local time zone.  If you specify 23, the
+ security bulletin compliance report will run some time between 11:00pm and 11:59pm.
+
+See crontab(1)"
+QUESTION: "During which hour would you like to a  security bulletin compliance report?"
+QUESTION_AUDIT: "When does the security bulletin compliance report run in cron?"
+YN_TOGGLE: 0
+DEFAULT_ANSWER:
+EXPL_ANS: "11"
+YES_CHILD: spc_proxy_yn
+SKIP_CHILD: generalperms_1_1
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: spc_run
+REG_EXP: "^[0-9]$|^1[0-9]$|^2[0-3]$"
+
+LABEL: spc_proxy_yn
+SHORT_EXP:  "If this machine is behind a proxy-type
+firewall, security patch check needs to be configured to traverse
+that firewall.  For example, the proxy might be specified as
+\"http://myproxy.mynet.com:8088\"  If this machine can connect directly to
+the Internet without a proxy, answer no to this question."
+QUESTION:  "Does this machine require a proxy to ftp to the Internet?"
+YN_TOGGLE: 1
+DEFAULT_ANSWER: "N"
+NO_CHILD: generalperms_1_1
+YES_CHILD: spc_proxy
+SKIP_CHILD: generalperms_1_1
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: spc_run
+REG_EXP: "^Y$|^N$"
+
+LABEL: spc_proxy
+SHORT_EXP:  "To create a security-bulletin compliance report, Bastille needs 
+the proxy URL for the relevant proxy.
+
+The URL for the proxy must be in the form
+
+<protocol of firewall>://address:port
+
+For example:
+    http://myproxy.mynet.com:8088
+
+A web proxy generally uses the HTTP protocol.  This answer should
+correspond closely to settings one would make in a web browser
+to point to a proxy server, but use the above syntax.
+
+If you asked Bastille to run the  security bulletin compliance report itself and/or in cron,
+it will use this proxy value."
+QUESTION:  "Please enter the URL for the web proxy."
+YN_TOGGLE: 0
+DEFAULT_ANSWER:
+EXPL_ANS: "http://yourproxy.yournet.com:8088"
+NO_CHILD: generalperms_1_1
+YES_CHILD: generalperms_1_1
+SKIP_CHILD: generalperms_1_1
+REQUIRE_DISTRO: not_HP-UX11.31SRP HP-UX
+PROPER_PARENT: spc_proxy_yn
+REG_EXP: "^http:\/\/.+\:.+$"

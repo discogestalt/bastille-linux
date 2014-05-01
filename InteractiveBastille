@@ -1,0 +1,629 @@
+#!/usr/bin/perl
+# For the "what" command
+# "@(#) Bastille version: 3.3"
+$VERSION="3.3";
+
+# Copyright (C) 2001-2009 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2000-2005 Jay Beale
+# Changes to support Tk interface copyright (C) 2000 by Paul L. Allen
+
+# Licensed under the GNU General Public License, version 2
+
+#
+# These new modifications were made in Bastille 1.2.0, starting in February
+# of 2001, by Jay Beale.  Tk-specific code is maintained solely by Paul,
+# while the remainder is generally maintained by Jay and worked on by
+# Jay, Pete Watkins and Paul.
+#
+#
+# The new modifications implement "requirements" so that non-applicable
+# questions aren't asked.  Thanks to Lee Brotzman here.
+#
+# When we want to skip a question, if YES_CHILD is equal to NO_CHILD, we
+# simply go to YES_CHILD.  When they are not equal, we skip to SKIP_CHILD.
+#
+# The new tags are implemented in Questions.txt like this:
+#
+#	REQUIRE_IS_SUID     - question isn't asked if file isn't Set-UID
+#	REQUIRE_FILE_EXISTS - question isn't asked if file doesn't exists
+#	REQUIRE_DISTRO	    - question isn't asked if distro isn't foo
+#
+# Each of these are read into the corresponding
+# $Question{question_name}{tag} entry.
+#
+# The argument list for the first two are lists of files, rather hash entries
+# in $GLOBAL_FILE{}.  The argument for the last is a list of  distributions
+# that this question applies to, in the same format as found in API.pm.
+#
+#
+########################################################################
+#
+# This version of the Bastille 1.1.1 InteractiveBastille.pl script was
+# modified by Paul Allen in early December, 2000.  The modifications
+# allow the "plugging in" of user interface modules.
+#
+# Changes in this file:
+#
+#  The original Curses interface code has been moved into the module
+#  Bastille_Curses.pm.  If InteractiveBastille.pl is invoked without
+#  arguments, the Curses module is used.
+#
+#  A new module Bastille_Tk.pm has been created to implement a perl/Tk
+#  user interface.  If InteractiveBastille.pl is invoked with the
+#  switch "-x", the Tk module is used.  For consistency, a "-c"
+#  switch selects the Curses module. The script defaults to using the
+#  Tk interface if you seem to be running X (if $DISPLAY is set)
+#  and have Perl/Tk installed.
+#
+#  Most of the main-line logic of this file has moved out into the
+#  do_Bastille function provided by the user interface modules.  The
+#  main-line logic now simply loads the appropriate interface module
+#  and calls its do_Bastille function.  The remainder of this file
+#  consists of functions not related to the user interface.
+#
+#  ReadConfig is used to populate answers into the GUI/TUI.
+#  if there is an existing config file
+#
+#  I'm not sure the "special test mode" code works any more.
+#
+#  I hope I haven't screwed up indentation, but I may have.  Sorry.
+#
+# My changes are copyrighted (C) 2000 by Paul L. Allen and licensed under
+# the GNU General Public License.
+#
+# Most of the real code here retains Jay's original copyright:
+#
+# Copyright (C) 2000 Jay Beale
+# Licensed under the GNU General Public License
+#
+# Further modifications are copyright (C) 2001-2003 Hewlett Packard Company
+
+##########################################
+## Bastille Linux Text User Interface   ##
+##########################################
+
+#
+# TO DO:
+#
+#  1) Use the newly-release Curses::Widgets 1.1 to get better text windows
+#  2) Finish documenting program
+#  3) Rewrite &Ask subroutine: either use Curses::Forms or just make cleaner
+
+##########################################################################
+# This is the Text User Interface for Bastille Linux Architecture 1,     #
+# which is used in Bastille Linux 1.0-1.2.                               #
+#                                                                        #
+# Bastille Linux's first architecture was primarily streams-based, as it #
+# was intended to be a fully interactive Perl script.  Since then, I've  #
+# understood that this original interface could be drastically improved, #
+# and tried to create a text-based interface which is motivated by RH's  #
+# setup utility.                                                         #
+#                                                                        #
+#                              DATA STRUCTURE                            #
+#                                                                        #
+# The data structure used to hold the questions is a hash of records,    #
+# which are implemented as a secondary hash.  The important part to      #
+# understand well is the parent-child relationships between records.     #
+# Each question has one or two children.  If it is a Yes/No question and #
+# there are questions that should only be asked if the answer was, say,  #
+# Yes, then the yes_child will differ from the no_child.  Each question  #
+# has a proper_parent item, though.  The easiest way to make sense of    #
+# this is by example:                                                    #
+#                                                                        #
+#  Q1:  Do you wanna answer IPCHAINS questions?                          #
+#            yes_child= Q1a   no_child= Q2                               #
+#                                                                        #
+#     Q1a: ipchains question...  yes_child=no_child=Q1b   parent= Q1     #
+#     Q1b: ipchains question 2   yes_child=no_child=Q2    parent= Q1a    #
+#                                                                        #
+#  Q2:  Wanna talk about sendmail?  proper_parent=Q1                     #
+#                                                                        #
+#                                                                        #
+# OK, so the data structure goes like this...  Each question is indexed  #
+# in the outer hash by a short name.  Remember, we're dealing with a     #
+# hash of references to hashes, which behaves (thanks Larry) like a      #
+# hash of hashes.  If you don't know what a reference is, don't worry    #
+# as Perl kinda does something pretty intuitive here (thanks Larry).     #
+# Within each question are the following fields:                         #
+#                                                                        #
+#                              RECORD FIELDS                             #
+#                                                                        #
+# question        --  question text (ex: wanna do this?)                 #
+# short_exp       --  explanation text, at lower detail.                 #
+# long_exp        --  explanation text, at high detail. (optional)       #
+# default_ans     --  a default answer for the question (optional)       #
+# toggle_yn       --  1 if a Yes/No question, 0 if fill-in-the-blank     #
+# yes_epilogue    --  epilogue to display after question is asked (opt)  #
+# no_epilogue     --  same as above, but displayed if this is y/n        #
+#                     question and selected answer was no (optional)     #
+# yes_child       --  index of next question, if this is not a Y/N ques. #
+#                     or if this is a Y/N ques. and answer=Y             #
+# no_child        --  index of next question, if Y/N ques. and answer=N  #
+# proper_parent   --  index of "proper" previous question.  This is      #
+#                     explained above, but, to recap: this is used so    #
+#                     1+-> 1a -> 1b -> 1c -> 2, while 2's parent is 1    #
+#                      +-> 2                                             #
+#                                                                        #
+#                     where threading is due to 1 being a Y/N question   #
+#                                                                        #
+# confirm_text    --  this is text added to the end of an answer to      #
+#                     maintain compatibility with the 1.0-1.2 ipchains   #
+#                     script, which requires that most (but not all) of  #
+#                     the user's answers be confirmed with a Y\n         #
+#                                                                        #
+# answer          --  answer chosen -- this is initially populated by    #
+#                     the default_answer field's contents                #
+# module          --  associated Bastille modules (automatically set     #
+#                         by Load_Questions)                              #
+#                                                                        #
+#                                                                        #
+#                              BASIC OPERATION                           #
+#                                                                        #
+# The TUI is basically composed of three big subroutines:                #
+#                                                                        #
+#   Load_Questions -- reads in the question data structure from a flat   #
+#                     text file (Questions.txt) and does some sanity     #
+#                     checking.                                          #
+#                                                                        #
+#   Ask            -- goes through all the business of asking a question #
+#                     including: calling subs to draw the screen,        #
+#                     scroll the explanation, and take input.  It has    #
+#                     logic to decide what question should be asked next #
+#                     based on answers and returns the index of such     #
+#                                                                        #
+#                                                                        #
+#  For more detail, read the Source, Luke.                               #
+#                                            - jjb                       #
+#                                                                        #
+##########################################################################
+
+
+# By default, we respect all "requires" tags in Questions.txt and test only is not default
+$UseRequiresRules = 'Y';
+$TEST_ONLY = 0;
+
+use Getopt::Long;
+use Text::Wrap;
+
+use lib "/usr/lib","/usr/lib/perl5/site_perl/","/usr/lib/Bastille","/usr/lib64";
+
+# make sure we don't look in the current directory for the modules!
+$i = 0;
+foreach $d ( @INC ) {
+	if ( $d eq '.' ) {
+		# remove "." from @INC for security reasons
+		splice(@INC, $i, 1);
+	}
+	++$i;
+}
+
+# Now that we've cleaned up @INC, let's load the API module
+#
+# Note: the API module no longer takes any action other than sanitizing
+# the environment.  ConfigureForDistro happens after we read in the
+# arguments
+use Bastille::API;
+
+# Look for -x or -c interface switches, and shift them off.
+# If more than one is present, the last one wins.
+# This would be a good place to check for a --keep-config switch.
+#
+# Process command-line arguments...
+my $nodisclaim = 0;
+my $verbose = 0;
+my $force = 0;
+my $log_only = 0;
+my $debug = 0;
+my $tk_interface = 0;
+my $curses_interface = 0;
+my $os_version = undef;
+my $alternate_config = undef;
+my $audit = 0;
+my $auditnobrowser = 0;
+
+my $CLI = join(' ', @ARGV); # Captures original command-line
+
+if( Getopt::Long::GetOptions( "n"     => \$nodisclaim,
+                              "v"     => \$verbose,
+                              "x"     => \$tk_interface,
+                              "c"     => \$curses_interface,
+			      "assess" => \$audit,
+			      "assessnobrowser" => \$auditnobrowser,
+			      "report" => \$audit,
+			      "reportnobrowser" => \$auditnobrowser,
+			      "a"     => \$audit,
+                              "force" => \$force,
+			      "log"   => \$log_only,
+			      "os:s"  => \$os_version,
+                              "f:s"   => \$alternate_config,
+			      "debug" => \$debug) ) {
+    $error = 0; # no parse error
+} else {
+    $error = 1; # parse error
+}
+
+my $err ="ERROR:  ";
+my $spc ="        ";
+
+
+if (defined($alternate_config)) {
+    unless (-e $alternate_config){
+        print STDERR "$err Non-existent file specified on command line: $alternate_config \n";
+        exit 1;
+    }
+    &setGlobal("BFILE","current_config",$alternate_config);
+
+}
+
+if( defined $os_version and $os_version eq "") {
+    # print out a pretty error message that tells the user to
+    # use an OS which Bastille supports
+
+#Note since we haven't loaded the B_log functions yet, we have to manually print
+#notes, warnings, and errors.
+
+    print STDERR "$err '' is not a supported operating system.\n";
+    print STDERR "$spc Valid operating system versions are as follows:\n";
+    my %supportedOSHash = &getSupportedOSHash;
+
+    foreach my $oSType (keys %supportedOSHash) {
+
+	print STDERR "$spc $oSType:\n$spc ";
+
+	my $os_number = 1;
+	foreach my $os (@{$supportedOSHash{$oSType}}) {
+	    print STDERR "'$os' ";
+	    if ($os_number == 5){
+		print STDERR "\n$spc ";
+		$os_number = 1;
+	    }
+	    else {
+		$os_number++;
+	    }
+
+	}
+	print STDERR "\n";
+    }
+
+    print STDERR "\n";
+
+    &showUsage();
+}
+elsif (defined $os_version ) {
+    $UseRequiresRules = 'N';
+}
+
+&setOptions($debug,$log_only,$verbose,$audit,$auditnobrowser,$os_version);
+&ConfigureForDistro;
+
+# ensuring mutually exclusive options are exclusive
+if(($tk_interface and $curses_interface) or $error) {
+    &showUsage();
+}
+sub noX {
+    &B_log("ERROR","Cannot use X interface because \$DISPLAY not set.".
+           "Please either set \$DISPLAY, use \"ssh -X\" or refer to the ".
+           "usage message below for other ways to run Bastille:\n\n");
+    &showUsage();
+}
+
+# setting Interface to use Tk
+if($tk_interface) {
+    $Interface = "Tk";
+    if ( $ENV{DISPLAY} eq '' ) {
+        &noX;
+    }
+#Note we catch illegal option settings in the bastille script
+} # setting interface to use Curses
+elsif($curses_interface) {
+    $Interface = "Curses";
+} # setting interface to use unknown
+elsif ($GLOBAL_AUDITONLY) {
+   # In the case of audit mode, don't assume we want to run interactively.
+    $Interface= 'audit';
+}
+else {
+    $Interface = '';
+    # if no DISPLAY variable is set in the environment hash then
+    if($ENV{DISPLAY} eq '') {
+	if (&GetDistro =~ "^HP-UX") { # try to use the curses interface
+            &B_log("NOTE","\$DISPLAY not set.  Attempting Curses interface.\n\n");
+            $Interface = "Curses";
+        } else {
+            &noX;
+        }
+    }
+    else { # if a DISPLAY variable is set then
+	# try to use the Tk interface
+	&B_log("NOTE","Valid display found; defaulting to Tk (X) interface.\n\n");
+	$Interface = "Tk";
+    }
+
+}
+
+&B_log("NOTE","Using $Interface user interface module.\n\n");
+unless ($GLOBAL_AUDITONLY) {
+if ( $UseRequiresRules eq 'Y' ) {
+	&B_log("NOTE","Only displaying questions relevant to the current configuration.\n\n");
+} else {
+	&B_log("NOTE","Displaying all questions relevant to " . &GetDistro .
+            " regardless of this system's specific settings.\n\n");
+}
+}
+
+# 1/18/2004 JJB
+#
+# Let's be smarter about how we get this @INC properly populated.
+#
+# We'll look for the exact perl modules that we're hoping to use and add their
+# directories to @INC.  We'll use push to avoid using a less-preferable
+# directory before the distribution's original directory.
+#
+
+# The perl modules we're looking for all always in a subdirectory of
+# /usr/lib/perl5/, generally within:
+#
+#  /usr/lib/perl5/{site_perl,vendor_perl,}/{5.6.0,5.8.0}/
+#
+# within these 6 directories, there are two more possible directories
+# that we've seen used, outside of just ./
+#
+#      ./i386-linux-thread-multi   AND  ./i586-linux-thread-multi
+#
+
+$depend_prefix = '/usr/lib/perl5';
+@depend_owners = ('site_perl','vendor_perl','.');
+@depend_versions = ('5.6.0','5.8.0','5.8.8');
+@depend_multis = ('.','i386-linux','i386-linux-thread-multi','i586-linux','i586-linux-thread-multi');
+
+foreach $depend_owner (@depend_owners) {
+    foreach $depend_version (@depend_versions) {
+	foreach $depend_multi (@depend_multis) {
+	    my $dir = "$depend_prefix/$depend_owner/$depend_version/$depend_multi";
+	    if ( -e "$prefix/Tk.pm" ) {
+		#print DEBUG "Appear to have found Tk.pm dependency in $dir\n";
+		push @INC,$dir;
+	    }
+	    elsif ( -e "$prefix/Curses.pm") {
+		#print DEBUG "Appear to have found Curses.pm dependency in $dir\n";
+		push @INC,$dir;
+	    }
+	}
+    }
+}
+
+for my $interface_module ("Curses", "Tk") {
+   if ( $Interface eq $interface_module ) {
+      eval "use $interface_module";
+      if ($@) {
+	 	&B_log("ERROR","Could not load the '${interface_module}.pm' interface module." .
+		       "This may be due to an invalid \$DISPLAY setting,".
+		       "or the module not being visible to Perl.\n\n");
+		print '\n';
+	  exit 1;
+      }
+   }
+}
+
+# KLUDGE: Load the stub...
+if ($Interface =~ /audit/) {
+    eval "use Bastille_Audit";
+}
+
+# IOLoader contains all validate and Questions functions.
+require Bastille::IOLoader;
+import Bastille::IOLoader;
+
+&showDisclaimer($nodisclaim) ;  #Require User to Accept Disclaimer
+
+
+# Select the user interface module.  These modules define somewhat
+# different versions of &do_Bastille and the rest of the logic for
+# each interface.
+#
+
+if (&GetDistro =~ "^HP-UX") {
+    my $actionlog=&getGlobal('BFILE','action-log');
+    my $errorlog=&getGlobal('BFILE','error-log');
+    my $config=&getGlobal('BFILE','current_config');
+                     ################################################################################
+    $SUPPORT_INFO = "       Current support information for HP-UX Bastille is provided on the\n" .
+                    "       HP-UX Bastille product page at http://software.hp.com\n\n" .
+
+                    "       HP-UX Bastille has the potential to make changes which will affect\n" .
+                    "       the functionality of other software.  If you experience problems after\n" .
+                    "       applying Bastille changes to your machine, be sure to inform anyone\n" .
+                    "       you ask for help that you have run Bastille on this machine.\n\n" .
+
+                    "       Helpful diagnostic tips:\n" .
+                    "       - 'bastille -r' will revert your system to a pre-Bastille state.\n" .
+                    "         so you can better track down the cause of the problem\n" .
+                    "       - A list of all actions Bastille has taken is located in.\n" .
+                    "           $actionlog\n" .
+                    "       - If you suspect Bastille, the following files will be\n" .
+                    "         helpful to others in diagnosing your problem:\n" .
+                    "           $actionlog\n" .
+                    "           $errorlog\n" .
+                    "           $config\n\n" .
+
+                    "      Available resources include:\n" .
+                    "      - the itrc hp-ux security forum at http://www.itrc.hp.com\n" .
+                    "      - the Bastille discussion group at\n" .
+                    "           bastille-linux-discuss\@lists.sourceforge.net.\n\n";
+
+}
+else {
+    $SUPPORT_INFO = "       Please address bug reports and suggestions to jay\@bastille-linux.org\n" .
+	            "       or, regarding the user interface, to allenp\@nwlink.com.\n";
+}
+
+if ($Interface eq "Tk") {
+    $InterfaceDescription =
+    "                               (Tk User Interface)\n" .
+    " \n" .
+    "                                   v$VERSION\n" .
+    " \n" .
+    " \n".
+    "       Please answer all the questions to build a more secure system.\n" .
+    " \n" .
+    "       The OK and Back buttons navigate forward and backward in the \n" .
+    "       questions database.  Changes made in the Answer field are *only*\n" .
+    "       saved when you push the Ok button!  The \"modules\" in the\n" .
+    "       questions database are listed to the left.  You can jump to\n" .
+    "       the start of any module simply by clicking on its name.\n" .
+    "\n" .
+    "       If at any time you would like to save your configuration changes\n" .
+    "       select File:Save in the menu bar.  This will save your profile to\n".
+    "       a location of your choice, and will designate that new file as the \n".
+    "       current file that will be updated in the final Save/Apply sequence.\n" .
+    "       Note some questions have two levels of explanatory text, which you\n" .
+    "       can adjust in the Explanation-Detail menu. \n" .
+    "\n" .
+    $SUPPORT_INFO .
+    "\n";
+
+    $InterfaceEndScreenDescription = "Bastille will now save your security-configuration choices, to the file listed\n".
+                                     "in the Bastille title-bar, or to the default:".&getGlobal('BFILE',"current_config").
+                                     " if none is listed, then it will apply the requested changes to your system and \n".
+                                     "create a TODO list in:\n" .
+                                     &getGlobal('BFILE',"TODO") .
+                                     "\n of remaining steps which you should do to secure your system, based on your\n".
+                                     "configuration choices (answers to the questions).\n" .
+				     "After Bastille has finished applying the configuration, you should review\n" .
+				     "the list and make the necessary changes to your system.  You should also\n" .
+				     "look at the Error log created in " . &getGlobal('BFILE',"error-log") . "\n" .
+				     "to make sure that Bastille did not fail unexpectedly in any of its tasks.\n\n";
+    require Bastille::IPFilter;
+    if ((&GetDistro =~ "^HP-UX") &&  # Necessary "one-off" to warn of a non-intuitive user-interface freeze on HP-UX.
+         (! &Bastille::IPFilter::isIPFenabled) &&
+         (&getGlobalConfig("IPFilter","configure_ipfilter") eq "Y")){
+         $InterfaceEndScreenDescription .= "WARNING: Network may go down for 10-15 seconds to load IPFilter module.\n" .
+                                          "The Bastille interface will freeze during this process.\n";
+    }
+#    $InterfaceEndScreenQuestion = "Would you like to save this configuration(to default config location), and apply it to your system?";
+#    $InterfaceEndScreenNoEpilogue = "Please use Back/OK buttons to move among the questions you wish to\n" .
+#	                            "change.( Remember, in order to accept an answer change you must use\n" .
+#				    "the OK button.)\n\n";
+
+
+
+	require Bastille_Tk;
+} elsif ($Interface eq "Curses") {
+
+    $InterfaceDescription =
+    "                            (Text User Interface)                  \n" .
+    "\n" .
+    "				   v$VERSION\n" .
+    "\n" .
+    "\n" .
+    "       Please answer all the questions to build a more secure system.\n" .
+    "       You can use the TAB key to switch among major screen functions,\n" .
+    "       like each question's explanation area, input area and button area.\n" .
+    "       Within each of the three major areas, use the arrow keys to scroll\n" .
+    "       text or switch buttons.\n" .
+    "\n" .
+    "       Please address bug reports and suggestions to jay\@bastille-linux.org\n" .
+    "\n";
+
+    $InterfaceEndScreenDescription = "We will now implement the choices you have made here.\n\n" .
+	"Answer NO if you want to go back and make changes!\n";
+    $InterfaceEndScreenQuestion = "Are you finished answering the questions, i.e. may we make the changes?";
+    $InterfaceEndScreenNoEpilogue = "Please use Back/Next buttons to move among the questions you wish to\nchange.\n\nChoose YES on this question later to implement your choices.\n";
+    require Bastille_Curses;
+} elsif ($GLOBAL_AUDITONLY) {
+
+} else {
+    &B_log("ERROR", "Invalid interface $Interface.\n");
+    exit 1;
+}
+
+#Load in the questions database
+$Question{"Title_Screen"}{'proper_parent'}="Title_Screen";
+$Question{"Title_Screen"}{'shortModule'}="Title Screen";
+$Question{"Title_Screen"}{'yes_child'}="End_Screen";
+
+$Question{"End_Screen"}{'proper_parent'}="Title_Screen";
+$Question{"End_Screen"}{'yes_child'}="End_Screen";
+
+if ( $UseRequiresRules eq 'Y' ) {
+  &B_log("NOTE","Bastille is scanning the system configuration...\n\n");
+}
+
+my ($Number_Modules,$first_question)=&Load_Questions($UseRequiresRules);
+
+# When we're auditing only, load no interface.
+if ($GLOBAL_AUDITONLY) {
+    exit 0;
+}
+
+# Add first and last questions
+&Load_Questions_Wrapper($first_question);
+
+$Question{"Title_Screen"}{'module'} = "Title Screen";
+$Question{"End_Screen"}{'module'} = "End";
+# Check for an existing config file and populate the default answers from it
+
+if (&ReadConfig(&getGlobal("BFILE", "current_config"))) {
+   &B_log("NOTE","Config file, ".&getGlobal('BFILE',"current_config").
+          ", found; populating answers.\n");
+} else {
+   &B_log("NOTE","No pre-existing config-file found at: " .&getGlobal('BFILE',"current_config").
+          "  Bastille will set answers to default values.");
+}
+&B_log("DEBUG","About to do_Bastille");
+# do_Bastille initializes the selected Interface, each interface has its own
+# do_Bastille subroutine, available in each interfaces perl module.
+&do_Bastille;
+
+
+sub Load_Questions_Wrapper($) {
+# sub Load_Questions creates a data structure called %%Questions
+
+    my $first_question = $_[0];
+    my $last_question;
+    # Set up Title Screen
+    $Question{"Title_Screen"}{"question"}="";
+
+    $Question{"Title_Screen"}{"short_exp"}=$InterfaceDescription;
+
+    $Question{"Title_Screen"}{"proper_parent"}="Title_Screen";
+    # Pay particularly good attention here! Title_Screen must have the index
+    # for the first question...  Load this from the file later!
+
+    $Question{"Title_Screen"}{"yes_child"}="$first_question";
+    $Question{$first_question}{"proper_parent"} = "Title_Screen";
+    # Last data file question lookup;
+
+    for $key (keys %Question){
+	if($Question{$key}{"yes_child"} =~ "End_Screen" &&
+	   $Question{$key}{"no_child"} =~  "End_Screen" ) {
+	    $last_question = $key;
+	}
+    }
+
+    if ($TEST_ONLY) {
+	exit;
+    }
+
+    # Set up last question: "Can we run now?" screen -- careful about Parent!!!
+    $Question{"End_Screen"}{"proper_parent"}="$last_question";
+    $Question{"End_Screen"}{"short_exp"}= $InterfaceEndScreenDescription;
+	$Question{"End_Screen"}{"question"}= $InterfaceEndScreenQuestion;
+    $Question{"End_Screen"}{"toggle_yn"}=1;
+    $Question{"End_Screen"}{"yes_child"}="RUN_SCRIPT";
+    $Question{"End_Screen"}{"no_child"}="End_Screen";
+    $Question{"End_Screen"}{"no_epilogue"}= $InterfaceEndScreenNoEpilogue;
+
+    return 1;
+}
+
+#Not used in HP-UX, Run_Bastille_with_Config may be dead code in all OS-s
+sub Run_Bastille_with_Config {
+    my $bastilleBackend = &getGlobal('BFILE',"BastilleBackEnd");
+    system("$bastilleBackend");
+}
+
+sub showUsage {
+    print &getGlobal('ERROR',"usage");
+    exit 1;
+}

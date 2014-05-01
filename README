@@ -1,0 +1,35 @@
+Bastille  is  a  system hardening / lockdown program which enhances the
+security of a Unix host.  It configures daemons, system settings and 
+firewalls to be more secure.  It can shut off unneeded services
+like rcp and rlogin, and helps create "chroot jails" that help limit the
+vulnerability of common Internet services like Web services and DNS.
+
+This tool currently hardens Red Hat (Fedora Core, Enterprise and Legacy/Classic),
+SuSE, Debian, Gentoo, Mandrake Linux, HP-UX, Mac OS X and Turbo Linux.
+
+If run in the preferred interactive mode, it can teach you a good deal about 
+security while personalizing your system security state.
+
+Bastille can also assess and report on the state of a system, which may 
+serve as an aid to security administrators, auditors and system
+administrators who wish to investigate the state of their system's 
+hardening without making changes to such.  This assessment functionality
+has been tested on HP-UX, Red Hat Linux (Fedora, Legacy, Enterprise) and
+SUSE systems.
+
+
+To install:
+
+Please use the distribution-specific method for installation.  On
+Red Hat, Mandrake and SuSE, this involves installing the RPM.  On Debian,
+you should use apt-get or download the deb package.  On Gentoo, please use
+emerge.  Finally, on HP-UX, please use your vendor supplied package.  See
+www.bastille-unix.org for more information.
+
+To run:
+
+bastille [ -b | -c | -x ] [ --os version ]
+bastille [--assess|--assessnobrowser]
+bastille [ -l | -r ]
+
+See bastille(1m) for detailed discussion of options.

@@ -1,0 +1,79 @@
+* Wed October 16 2006 Debora Velarde <dvelarde@us.ibm.com>
+- Added SLES10 support
+  Changes specific to SLES10:
+  - Skip additional logging questions since LAuS not part of SLES10
+    LAuS question will now only be asked if distro is SE9.0 or SE8.0
+  - Added new B_service_start, B_service_stop, B_service_restart to API.pm
+  - Added calls to start/stop service to chkconfig on/off
+    since chkconfig doesn't take affect until after reboot
+  - Updated changes made to Apache config files to deal with
+    newer Apache Options syntax
+  - Changed location of some config files, no longer have rc.config
+  - Changed some service names: audit->auditd, inn->innd
+  - Restart vsftpd to pick up config changes
+  Changes affecting all SuSE distros:
+  - bug fix: corrected chkconfig on to chkconfig off in
+    sub B_chkconfig_off
+  Changes affecting multiple Linux distros:
+  - Now also works with newer versions of perl
+  - Updated acpid/apmd question warning users of other uses of acpid
+    and that it cannot be disabelled if hal is on system.
+    Changed default response.
+  - bug fix: copy LINUX.service also during install
+  - Changed some hard coded links to use getGlobal method
+  - corrected some typos
+
+* Thu Jul 07 2005 Jay Beale <jay@bastille-linux.org> 3.0.5-1.0
+- Added CentOS 4.0 detection.
+- Pulled RHEL4 out of beta.
+- Added SuSE 9.3 support.
+
+* Mon Apr 18 2005 Jay Beale <jay@bastille-linux.org> 3.0.0-1.0
+- Added reporting functionality to Bastille to allow it to aid security administrators, auditors and system administrators in 
+investigating the current hardening level of the system.
+
+* Thu Mar 24 2005 Jay Beale <jay@bastille-linux.org> 2.2.7-1.0
+- Corrected bug where Bastille would log a non-fatal error on the lack of /etc/pam.d/{kde,gdm} files when KDE or Gnome hadn't been installed.
+- Corrected bug where Bastille would log a non-fatal error on recent SuSE systems because we were still trying to tweak rc.config in addition to doing the normal chkconfig. 
+- Corrected a bug where Logging.LAuS error'ed non-descriptively and tried to take action when /etc/init.d/audit was missing.
+
+* Sun Mar 20 2005 Jay Beale <jay@bastille-linux.org> 2.2.6-1.0
+- Added --fkl switch to automatically implement the Fort Knox Linux configuration
+- Fixed a bug reported by Len Lattanzi  in Install-OSX.sh -- the script didn't
+  run properly.
+- Added new questions for deleting extraneous users and groups.
+- Fixed Red Hat Fedora Core detection.
+- Fixed grub password detection.
+
+* Sat Mar 19 2005 Jay Beale <jay@bastille-linux.org> 2.2.5-1.0
+- Applied Paul Allen's patch to fix a bug in the front-end where we couldn't skip modules.
+
+* Fri Mar 18 2005 Jay Beale <jay@bastille-linux.org> 2.2.4-1.0
+- Fixed a bug in two questions - one wasn't asked while the other wasn't fully activating a service.
+
+* Thu Mar 17 2005 Jay Beale <jay@bastille-linux.org> 2.2.3-0.1
+- Fixed a showstopper bug in the less popular X Curses interface
+
+* Thu Jan 27 2005 Jay Beale <jay@bastille-linux.org> 2.2.2-0.2
+- Fixed two tiny typo-related bugs
+
+* Wed Jan 26 2005 Jay Beale <jay@bastille-linux.org> 2.2.2-0.1
+- Added a LAuS question and SLES8/9 recognition
+
+* Tue Jan 25 2005 Jay Beale <jay@bastille-linux.org> 2.2.1-0.1
+- First test build of new code incorporating FKL-related items
+
+* Mon Nov 15 2004  Jay Beale <jay@bastille-linux.org> 2.2.0-0.2
+- Fixed a chmod bug that was setting permissions too strongly.
+
+* Wed Nov 14 2004  Jay Beale <jay@bastille-linux.org> 2.2.0-0.1
+- Changed Questions.txt into separate Questions files for each module (Jay Beale)
+- Placed file locations and service names in OSMaps files (Tyler Easterling, HP)
+- Added more distro support
+
+* Sun Aug 29 2004  Jay Beale <jay@bastille-linux.org> 2.1.3-0.2
+- Fixed a Fedora-config parsing bug
+
+* Sun Aug 29 2004  Jay Beale <jay@bastille-linux.org> 2.1.3-0.1
+- Updated Bastille for RHEL2 and Fedora
+

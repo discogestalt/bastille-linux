@@ -1,0 +1,239 @@
+FILE: BootSecurity.pm
+
+LABEL: protectgrub
+SHORT_EXP: "If an attacker has physical access to this machine, and
+particularly to the keyboard, s/he could get super-user access through the
+Grand Unified Bootloader (GRUB) command line.  We will look at other ways
+to prevent this later, but one easy way is to password-protect the GRUB
+prompt.  If GRUB is password-protected, any user can reboot the machine
+normally, but only users with the password can pass arguments to the GRUB
+prompt.
+
+Note that this option can interfere dual-booting with a second operating
+system, since dual booting often requires that type an O/S name to boot
+one of the two operating systems.  If this machine sits in a general
+purpose lab and dual boots, you probably shouldn't choose this option.
+
+Otherwise, this is strongly recommended for general use workstations and
+servers which are not locked away in their own room."
+QUESTION: "Would you like to password-protect the GRUB prompt? [N]"
+QUESTION_AUDIT: "Is the GRUB prompt password-protected?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: protectgrub_password
+NO_CHILD: protectlilo
+SKIP_CHILD: protectlilo
+PROPER_PARENT: forbiduserview
+
+LABEL: protectgrub_password
+SHORT_EXP: "You've elected to password protect the GRUB prompt.  Please enter
+a GRUB password.
+
+WARNING: Please do not make this the root password for this computer, as the
+         GRUB password will be stored unencrypted on the machine."
+QUESTION: "Enter GRUB password, please.   []"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER:
+YN_TOGGLE: 0
+YES_CHILD: protectlilo
+NO_CHILD: protectlilo
+PROPER_PARENT: protectgrub
+
+LABEL: protectlilo
+SHORT_EXP: "If an attacker has physical access to this machine, and
+particularly to the keyboard, s/he could get super-user access through the
+Linux Loader (LILO) command line.  We will look at other ways to prevent this
+later, but one easy way is to password-protect the LILO prompt.  If LILO is
+password-protected, any user can reboot the machine normally, but only
+users with the password can pass arguments to the LILO prompt.
+
+Note that this option can interfere dual-booting with a second operating
+system, since dual booting often requires that type an O/S name to boot
+one of the two operating systems.  If this machine sits in a general
+purpose lab and dual boots, you probably shouldn't choose this option.
+
+Otherwise, this is strongly recommended for general use workstations and
+servers which are not locked away in their own room."
+QUESTION: "Would you like to password-protect the LILO prompt? [N]"
+QUESTION_AUDIT: "Is the LILO prompt password-protected?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: protectlilo_password
+NO_CHILD: lilodelay
+SKIP_CHILD: lilodelay
+PROPER_PARENT: protectgrub
+
+LABEL: protectlilo_password
+SHORT_EXP: "You've elected to password protect the LILO prompt.  Please enter
+a LILO password.
+
+WARNING: Please do not make this the root password for this computer, as the
+         LILO password will be stored unencrypted on the machine."
+QUESTION: "Enter LILO password, please.   []"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER:
+YN_TOGGLE: 0
+YES_CHILD: lilodelay
+NO_CHILD: lilodelay
+PROPER_PARENT: protectlilo
+
+LABEL: lilodelay
+SHORT_EXP: "We can further protect the system by taking away the
+attacker's chance to type anything at the LILO prompt.  This is not
+dependent on the previous option, nor is it exclusive of it.  If you chose the
+previous option, this will make your configuration even tighter, as some
+machines will allow an attacker to place keystrokes into the keyboard buffer
+before he or she reaches the LILO prompt."
+QUESTION: "Would you like to reduce the LILO delay time to zero? [N]"
+QUESTION_AUDIT: "Is the LILO delay time zero?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: lilosub_drive
+NO_CHILD: lilosub_drive
+PROPER_PARENT: protectlilo
+
+LABEL: lilosub_drive
+SHORT_EXP: "If you selected \"yes\" on either of the previous options (password-protecting the LILO prompt or reducing its delay to zero), then you need to now write the changes to your LILO configuration.
+
+Do you boot from your hard drive? That is, is LILO installed on your hard
+drive?"
+QUESTION: "Do you ever boot Linux from the hard drive? [Y]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: lilosub_floppy
+NO_CHILD: lilosub_floppy
+PROPER_PARENT: lilodelay
+
+LABEL: lilosub_floppy
+SHORT_EXP: "If you have a Linux boot floppy, either for normal booting or for emergency use, you should also write these LILO changes to that floppy.  If you do not already have a customized Linux boot floppy, or if you did not choose to make any changes to your LILO configuration, you should answer \"no\" here."
+QUESTION: "Would you like to write the LILO changes to a boot floppy? [N]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: lilosub_writefloppy
+NO_CHILD: secureinittab
+SKIP_CHILD: secureinittab
+PROPER_PARENT: lilosub_drive
+
+LABEL: lilosub_writefloppy
+SHORT_EXP: "Please place the boot floppy to be modified in a floppy drive, preferably the first drive, called \"fd0\" or \"a:\".
+
+Now, type in the Linux name of the drive device, like so:
+
+	    fd0          floppy drive 1
+	    fd1          floppy drive
+"
+QUESTION: "Floppy drive device name: [fd0]"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: fd0
+YN_TOGGLE: 0
+YES_EXP: "We will write to this disk when we actually make changes.  Please
+leave this disk in the drive."
+NO_EXP:
+YES_CHILD: secureinittab
+NO_CHILD: secureinittab
+PROPER_PARENT: lilosub_floppy
+
+LABEL: secureinittab
+SHORT_EXP:  "In the default configuration, while in
+console mode (non-graphical), any user at the keyboard can reboot the
+machine by pressing CTRL-ALT-DELETE.  This is an unlikely method of attack,
+and disabling CTRL-ALT-DELETE is only a useful precaution in cases where the
+attacker would have access to the keyboard but not the power supply; if this
+is not the case, it might be a better idea to not disable CTRL-ALT-DELETE."
+LONG_EXP: "Disabling CTRL-ALT-DELETE rebooting is designed to prevent an
+attacker with access to the machine's keyboard from being able to reboot
+the machine.  A reboot done in this manner should not damage the
+file system, as it shuts the machine down cleanly, writing out all pending data
+in the disk cache to disk first.  Even with this functionality disabled,
+however, an attacker could just power cycle machine or pull the power cord.
+
+Unless the power line, switch and case of the machine can
+be physically protected, this precaution is wholly unnecessary.  Given the
+fact that the attacker _can_ reboot the machine, would you prefer that
+s/he do it in a way potentially damages the file system? Think carefully here,
+as maintaining the integrity of the machine's file system may be secondary to
+the goal of keeping an attacker off, in which case it is better to answer yes
+here, since having to repair/ignore the damage and wait for file system
+checks may slow the attacker down."
+QUESTION: "Would you like to disable CTRL-ALT-DELETE rebooting? [N]"
+QUESTION_AUDIT: "Is CTRL-ALT-DELETE rebooting disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: passsum
+NO_CHILD: passsum
+PROPER_PARENT: lilosub_floppy
+
+LABEL: passsum
+SHORT_EXP: "Anyone who can physically interact with your system can tell the
+bootloader to bring your machine up in \"single user mode\", where s/he is 
+given root privileges and everyone else is locked out of the system.  This
+doesn't require a password on most Unix systems.  The method differs with
+the bootloader being used, thus on each operating system revision and 
+architecture.  You can test this attack on a Linux system that uses LILO by
+typing "linux single" at the LILO: prompt.
+
+Bastille can password-protect the bootprompt for you.  You won't have to 
+remember another password--single user mode, or \"root\" mode, will require 
+the root password.
+
+We HIGHLY recommend that you password protect single user mode."
+QUESTION: "Would you like to password protect single-user mode? [Y]"
+QUESTION_AUDIT: "Is single-user mode password-protected?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: disable_autologin
+NO_CHILD: disable_autologin
+PROPER_PARENT: secureinittab
+
+LABEL: disable_autologin
+SHORT_EXP: "Autologin logs you in as a particular user without a password. 
+This option is an extremely low security feature, intended to make
+the operating system easier to use.
+
+You should disable autologin unless you absolutely, positively are the 
+only person with physical access to this machine."
+LONG_EXP:  "Autologin logs you in as a particular user without a password. 
+This option is an extremely low security feature, intended to make
+the operating system easier to use.
+
+You should disable autologin unless you absolutely, positively are the 
+only person with physical access to this machine."
+QUESTION: "May we disable Autologin? [Y]"
+QUESTION_AUDIT: "Is Autologin disabled?"
+DEFAULT_ANSWER: Y
+REQUIRE_DISTRO: MN OSX
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: tcpd_default_deny
+NO_CHILD: tcpd_default_deny
+PROPER_PARENT: passsum

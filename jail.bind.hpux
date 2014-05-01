@@ -1,0 +1,33 @@
+#
+# Bind 8 Chroot Jail Listing for HP-UX
+#
+#  all formats explicitly state ownership and permissions except
+#  slink as they cannot be set by usual functions.
+#  formats:
+#   "dir" makes directory in the jail 
+#    dir path permissions owner group
+#	 dir etc 555 root daemon
+#
+#   
+#   "file" copys source file to destination_dir/destination_file 	
+#    file source destiation_dir destination_file permissions owner group
+#	file /dev/null etc/passwd 555 root daemon
+#
+#    slink makes a symbolic link pointing to some location in the jail visible 
+#     from a location outside of the jail.
+#    	slink var/run/named.pid /var/run/named.pid
+#
+dir var/run 0755 bin bin
+
+file /usr/lib/libnsl.1 usr/lib/libnsl.1 0555 bin bin
+file /usr/lib/libl.1 usr/lib/libl.1 0555 bin bin
+file /usr/lib/libxti.2 usr/lib/libxti.2 0555 bin bin
+file /usr/sbin/named-xfer usr/sbin/named-xfer 0555 bin bin
+file /etc/protocols etc/protocols 0444 bin bin
+file /etc/resolv.conf etc/resolv.conf 0444 bin bin
+
+
+
+
+
+

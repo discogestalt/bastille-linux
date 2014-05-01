@@ -1,0 +1,32 @@
+
+Bastille is a customizeable security hardening tool.
+
+----
+Note that the interface for Bastille uses X, which is a cleartext protocol.
+You should ensure that running the GUI is secure in one of the following
+ways:
+  1. Run the Bastille GUI on a local display (may not be an option for 
+     headless servers)
+  2. Run the Bastille GUI over a secure network (adequately protected by
+     firewalls and/or airgap) before putting the machine into production.
+  3. Use a secure shell (such as openssh or HP-UX Secure Shell) to "tunnel" the 
+     X display back to your local machine.
+  4. Run the Bastille GUI on another, identical machine in a secure 
+     environment.  Then, copy the config file over to the production 
+     machine and run "bastille -b"  (details in user_guide.txt)
+
+----
+Recommended Patches for HP-UX are:
+
+  PHKL_26059 (11.00 only)
+    Without this patch the kernel may stop sending signals under high 
+    stress conditions, which can cause audomon processes to not be killed
+    when running Bastille multiple times.  (This patch requires a reboot)
+
+  PHCO_23224
+    If you have a null root password before running Bastille (please don't)
+    then this patch fixes a problem where you wouldn't be able to change
+    your password after converting to trusted mode.
+
+----
+See user_guide.txt for details on how to use Bastille.

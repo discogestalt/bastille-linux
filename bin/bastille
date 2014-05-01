@@ -1,0 +1,418 @@
+#!/bin/sh
+# for "what":
+# "@(#) Bastille version: 3.1"
+# Copyright (C) 2001-2003, 2005-2009 Hewlett Packard Development Company, L.P.
+# Copyright (C) 2005 Jay Beale
+# Licensed under the GNU General Public License, version 2
+##################################################################
+# File: $Id: bastille,v 1.26 2012/02/14 18:08:51 jay Exp $
+# This script does the following:
+#   1) Determines if Perl and the required modules are installed
+#   2) Configures the paths to ensure Bastille runs correctly on
+#      all supported operating systems.
+#
+# Note: $BASTILLE_DEBUG can be used to insert a "-d" into the perl option
+#       list (or any other option, such as "-w" to help with
+#       troubleshooting.
+##################################################################
+export PATH="/bin:/usr/bin:/usr/sbin:$PATH"
+export bastille_drift="/opt/sec_mgmt/bastille/bin/bastille_drift"
+export PERL5LIB="$PERL5LIB:/opt/sec_mgmt/bastille/lib:/opt/sec_mgmt/bastille/lib/API:/usr/lib/perl5/site_perl:/usr/lib/Bastille:/usr/lib/perl5/site_perl/5.6.0/i386-linux"
+umask 022
+set +o privileged # perl will not accept -m options while suid otherwise
+
+#Keep bastille from freezing if put in the background
+trap '' SIGTTOU
+
+# minimum version of perl is 5.005
+MIN_V_MAJ=5
+MIN_V_MIN=005
+PARSED_PATH="`echo $PATH | sed -e 's/:/ /g'`"
+PERL_PATHS="$CORRECT_PERL_PATH /opt/perl/bin /usr/bin /bin $PARSED_PATH"
+
+  NOTE='NOTE:    '
+  ERRORWARN='WARNING: '
+  ERRSPACES='         '
+
+retval=0    # holds current error condition only values are 0 - Success,
+            # and 2 - warning for install, and either error or
+            # warning for run-time execution
+
+printErr () {
+    cat >&2 << EOF
+$ERRORWARN Unable to find perl version $MIN_V_MAJ.$MIN_V_MIN or greater
+$ERRSPACES in either your path or in the standard places for perl.
+$ERRSPACES Bastille cannot function without perl $MIN_V_MAJ.$MIN_V_MIN or higher.
+$ERRSPACES You may to do one of the following to resolve this problem:
+$ERRSPACES   1) Install perl. It is available from
+$ERRSPACES      http://www.cpan.org/ports/index.html
+$ERRSPACES   2) Create a symbolic link from the correct
+$ERRSPACES      version of perl to /opt/perl/bin/perl or some element in your path
+$ERRSPACES      with ln -s <correct_perl> <directory in your path>/perl
+$ERRSPACES If Bastille did not find your perl, and it is later than the versions above,
+$ERRSPACES you should override Bastille's default search path by setting the
+$ERRSPACES \$CORRECT_PERL_PATH environment variable.  Set it to the directory that the your
+$ERRSPACES perl binary is located in.
+
+EOF
+}
+
+printUsage () {
+  cat >&2 << EOF
+$ERRSPACES Usage: bastille [ -b  | -c | -x ] [ --os <version>] [ -f <alternate config> ]
+$ERRSPACES        bastille [-r | -l | -h | --assess | --assessnobrowser ]
+$ERRSPACES -b : use a saved config file to apply changes
+$ERRSPACES      directly to system
+$ERRSPACES -c : use the Curses (non-X11) GUI, not available on HP-UX
+$ERRSPACES -h : this help
+$ERRSPACES -f : populate answers with alternate configuration file
+$ERRSPACES -r : revert Bastille changes to original file versions (pre-Bastille)
+$ERRSPACES -l : list the standard config file(s) (if any) that matches the last
+$ERRSPACES      run config
+$ERRSPACES --os version : ask all questions for the given operating system
+$ERRSPACES      version.  e.g. --os HP-UX11.11
+$ERRSPACES -x : use the Perl/Tk (X11) GUI
+$ERRSPACES --assess / -a : run Bastille in assessment mode, generating a report and displaying it in a browser
+$ERRSPACES --assessnobrowser : run Bastille in assessment mode, generating a report with no browser
+EOF
+}
+
+systemFileLocations() {
+
+    OS=`uname -s`
+    if [ ${OS}x = "HP-UXx" ]; then # find right comparison directories for config files
+	config_repository="/etc/opt/sec_mgmt/bastille"
+	last_config="/var/opt/sec_mgmt/bastille/last.config"
+	# avoid "remnant" last config file if in SRP container before initialization
+	if [[ -f /opt/hpsrp/bin/util/srp_info ]]; then
+	    /opt/hpsrp/bin/util/srp_info -q -s -S cmds
+            if [[ $? -eq 2  &&  ! -f /var/opt/sec_mgmt/bastille/._SRPcont_init ]]; then
+		# running in SRP container before init; force last_config to unknown file
+		last_config="none"
+            fi 
+        fi
+	scripts_location="/opt/sec_mgmt/bastille/bin"
+    else #Linux locations
+	config_repository="/etc/Bastille"
+	last_config="/var/log/Bastille/last.config"
+	scripts_location="/usr/sbin"
+	data_location="/usr/share/Bastille"
+    fi
+
+
+
+}
+
+
+currentConfig () {
+
+    match=""
+    # defines OS specific file locations based on uname
+    systemFileLocations
+
+    if [ -f $last_config ]; then
+        config_files=`find $config_repository -type f -name \*config 2>/dev/null`
+	for config_cursor in `echo $config_files`
+	  do
+	  if /usr/bin/diff $last_config $config_cursor >/dev/null 2>&1
+	      then
+	      match="$match   $config_cursor\n"
+	  fi
+	done
+	if [ -n "$match" ]; then
+	    echo "The last bastille run corresponds to the following profiles:"
+	    echo "$match"
+	else
+            cat >&2 << EOF
+NOTE:    The last config file applied,
+$ERRSPACES logged at $last_config
+$ERRSPACES does not match any *.config file in
+$ERRSPACES $config_repository.
+$ERRSPACES This probably means that Bastille was last run interactively and
+$ERRSPACES changes were made to the config file, but they have not yet been
+$ERRSPACES applied, or that the source config file was moved.  If you do have pending 
+$ERRSPACES changes in a config file, you can apply them by running
+$ERRSPACES 'bastille -b -f <config file>.'
+EOF
+
+	fi
+    else
+	echo "NOTE:    The system is in its pre-bastilled state.\n"
+    fi
+
+}
+
+# First, make sure we're root
+if [ `PATH="/usr/bin:/bin"; id -u` -ne 0 ]; then
+    echo "ERROR:   Bastille must be run as root user" >&2
+    exit 1
+fi
+
+# Look under common locations for Perl, and then the user's path
+
+for CURRENT_PERL_PATH in $PERL_PATHS
+  do
+  if [ ! -x ${CURRENT_PERL_PATH}/perl ]; then
+      FOUND=no;
+  else
+      FOUND=yes;break
+  fi
+done
+
+
+if [ $FOUND = 'no' ]; then
+    printErr
+    exit 2
+fi
+
+
+# Now we have some version of perl
+# We check that the version is at least the minimum
+
+PERL_VERSION=`${CURRENT_PERL_PATH}/perl -version |
+                head -2 |            # the second line contains the version
+                tr " "  "\n" |       # split words into separate lines
+                sed -e "s/^v//" |    # to get rid of the v in v5.6.0
+                grep "^[1-9]\." |    # find a "word" that starts with number dot
+                sed -e "s/_/./"`     # substitute _patchlevel with .patchlevel
+                                     #   (used in 5.005_03 and prior)
+
+# everything before the first .
+PERL_V_MAJ=${PERL_VERSION%%.*}
+# everything after the first .
+PERL_V_NOTMAJ=${PERL_VERSION#*.}
+
+# minor revision number
+PERL_V_MIN=${PERL_V_NOTMAJ%%.*}
+# Patch level, ignored in this logic
+PERL_V_PL=${PERL_V_NOTMAJ#*.}
+
+# defining file locations base on uname
+systemFileLocations
+
+isAssessing='no'
+nonXArg='no'
+
+# On HP-UX, test version of Perl to confirm that it is recent enough.
+if [ `uname` == 'HP-UX' ] ; then
+    if [ $PERL_V_MAJ -eq $MIN_V_MAJ  -a  $PERL_V_MIN -lt $MIN_V_MIN -o $PERL_V_MAJ -lt  $MIN_V_MAJ ]; then # invalid Perl
+        printErr
+        retval=2
+    fi
+fi
+
+if [ $retval -eq 0 ]; then
+# Loop through options, extracting the valid ones in any order
+# print out a usage error if the user selects more than one option, or an invalid one
+    option_used=0 # 1 is reached state where no more exclusive options can be processed
+    options_left=""; #options to pass to the perl script
+    runcmd="${CURRENT_PERL_PATH}/perl $BASTILLE_DEBUG $scripts_location/InteractiveBastille" # The command that will eventually be run
+    needx='yes'   # Determines if we need to search for the Tk libraries
+    optarg='no'  # Used to flag options that have an argument
+    for current_option in $@
+      do
+      option_test="`echo $current_option | grep -E '^-'`" #see if arg follows option
+      if [ ${optarg} = "yes" -a -z "$option_test" ]; then #append if arg follows option (& option wants arg)
+	options_left="$options_left $current_option" # append option with its argument
+	optarg='no'
+      else
+	optarg='no'
+        case $current_option in
+# Exclusive options follow
+	  '-b')
+	      option_used=$(($option_used + 1))
+	      # trapping signals INT, QUIT, TERM, and EXIT for back-end run
+	      echo "NOTE:    Entering Critical Code Execution."
+	      echo "         Bastille has disabled keyboard interrupts."
+              echo
+	      echo
+	      stty -isig 2> /dev/null
+	      runcmd="${CURRENT_PERL_PATH}/perl $BASTILLE_DEBUG $scripts_location/BastilleBackEnd"
+	      needx='no'
+	      ;;
+	  '-u')
+              echo "NOTE:    Use of -u is deprecated, use -r instead."
+ 	      option_used=$(($option_used + 1))
+	      stty -isig 2> /dev/null
+	      runcmd="${CURRENT_PERL_PATH}/perl $BASTILLE_DEBUG $scripts_location/RevertBastille"
+	      needx='no'
+	      ;;
+	  '-r')
+	      option_used=$(($option_used + 1))
+	      stty -isig 2> /dev/null
+	      runcmd="${CURRENT_PERL_PATH}/perl $BASTILLE_DEBUG $scripts_location/RevertBastille"
+	      needx='no'
+	      ;;
+	  '-x')
+	      option_used=$(($option_used + 1))
+	      options_left="$options_left -x"
+	      needx='yes'
+	      ;;
+	  '-c')
+	      option_used=$(($option_used + 1))
+	      options_left="$options_left -c"
+	      needx='no'
+	      ;;
+	  '-a')
+              option_used=$(($option_used + 1))
+              options_left="$options_left -a"
+              needx='no'
+              isAssessing='yes'
+              ;;
+	  '--assess')
+	      option_used=$(($option_used + 1))
+	      options_left="$options_left --assess"
+	      needx='no'
+              isAssessing='yes'
+	      ;;
+          '--assessnobrowser')
+              option_used=$(($option_used + 1))
+              options_left="$options_left --assessnobrowser"
+              needx='no'
+              isAssessing='yes'
+              ;;
+	  '--report')
+	      option_used=$(($option_used + 1))
+              options_left="$options_left --report"
+              needx='no'
+              isAssessing='yes'
+              ;;
+          '--reportnobrowser')
+	      option_used=$(($option_used + 1))
+              options_left="$options_left --reportnobrowser"
+              needx='no'
+              isAssessing='yes'
+              ;;
+	  '-l')
+	      option_used=$(($option_used + 1))
+	      runcmd="currentConfig"
+	      options_left=""
+	      needx='no'
+	      ;;
+	   '-h'|'--help')                           # help
+	      option_used=$(($option_used + 1))
+	      runcmd="printUsage"
+	      needx='no'
+	      ;;
+	   '--fkl')
+	      # Fort Knox Linux
+	      option_used=$(($option_used +1 ))
+	      if [ -f /etc/SuSE-release ] ; then
+		  cp ${data_location}/FKL/configs/fkl_config_suse.cfg ${config_repository}/config
+	      else
+		  if [ -f /etc/redhat-release ] ; then
+	 	     cp ${data_location}/FKL/configs/fkl_config_redhat.cfg ${config_repository}/config
+		  fi
+	      fi
+	      # Quite possibly, change the below to an exec
+	      runcmd="$0 -b --force"
+	      options_left=""
+	      needx=no
+	      ;;
+#  Non-exclusive (undocumented) options follow:
+	  '-n')
+	      options_left="$options_left -n"
+	      ;;
+#  Non-exclusive supported and documented options follow:
+	  '--os')
+	      options_left="$options_left --os"
+              optarg='yes'
+              nonXArg='yes'
+	      ;;
+          '-f')
+              options_left="$options_left -f"
+              optarg='yes'
+              nonXArg='yes'
+              ;;
+#  Non-exclusive (undocumented and unsupported) options follow:
+#  There is no validity/combination checking done with these.
+#  Use them very carefully, they are only tested in limited contexts!!
+	  '--force')
+	      options_left="$options_left --force"
+	      ;;
+	  '-v'|'--verbose')                  # verbose option (see API.pm)
+	      options_left="$options_left -v"
+	      ;;
+	  '--log')                    # only log actions
+	      options_left="$options_left --log"
+	      ;;
+	  '--debug')                  # create a debug log
+	      options_left="$options_left --debug"
+	      ;;
+	  *)
+	      option_used=12 # Flag invalid option
+	      ;;
+        esac
+      fi
+    done
+
+#Detect case where -f or --os attempted use with --assess
+    if [ \( x$nonXArg = xyes \) -a  \( x$isAssessing = xyes \) ]; then
+      printUsage
+      exit 2
+    fi
+
+# We have a valid version of perl! Verify that all the required
+# modules can be found.
+    if [ $needx = "yes" ]; then
+	missingmod=0 # flag to indicate if missing mod found.
+	for mod in "Tk"
+	  do
+	# see if perl can find the module
+	  ${CURRENT_PERL_PATH}/perl -M$mod < /dev/null > /dev/null 2>&1
+	  if [ $? != 0 ]; then
+	# Cannot find module
+	      retval=2
+	      if [ $missingmod = 0 ]; then
+	    # First error message printed here
+		  missingmod=1;
+		  echo "$ERRORWARN ${CURRENT_PERL_PATH}/perl cannot find Perl module $mod.">&2
+	      else
+		  echo "$ERRSPACES ${CURRENT_PERL_PATH}/perl cannot find Perl module $mod.">&2
+	      fi
+	  fi
+	done
+	if [ $missingmod = 1 ]; then # There were missing modules
+	    cat >&2 << EOF
+$ERRSPACES The above module(s) is/are required to correctly display
+$ERRSPACES the Bastille User Interface.  If you are unable to find a
+$ERRSPACES pre-compiled module for your OS, they can be found at:
+$ERRSPACES   http://www.cpan.org/modules/01modules.index.html
+$ERRSPACES If you installed the modules in another installation of
+$ERRSPACES perl besides the one listed in the error message, you may
+$ERRSPACES override Bastille's search path by setting the
+$ERRSPACES \$CORRECT_PERL_PATH environment variable to the directory
+$ERRSPACES that the desired perl binary is located in.
+
+
+EOF
+	fi
+    fi
+fi
+
+
+
+if [ $retval != 0 ]; then  # exit if any problems earlier in script
+    exit $retval
+fi
+
+
+
+#Use information gleaned in option-parsing case statement about to run the program
+if [ $option_used -le 1 ]; then
+    $runcmd $options_left
+    retval=$?
+    stty isig 2> /dev/null
+else
+    printUsage
+    exit 2
+fi
+
+if [ -f /var/opt/sec_mgmt/bastille/needBaseline ]; then
+    print "${NOTE}First Successful Bastille run, so saving baseline configuration."
+    print "${ERRSPACES}See bastille_drift(1m) for more detail."
+    $bastille_drift --save_baseline
+fi
+
+
+exit $retval

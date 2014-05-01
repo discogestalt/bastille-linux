@@ -1,0 +1,28 @@
+Unless you download and patch your system, you can be compromised
+even with the use of this program. We (the Authors of this program)
+highly suggest that you spend the time to get and install all the
+latest patches for your system to ensure that your system is as
+secure as can be made possible.
+
+It should be noted that the Authors of this program have seen systems
+of all types hacked into and compromised within hours of
+installation/activation. Red Hat is not at fault - All Operating
+System distributions bear this same risk.
+
+You can find the required patches on Redhat's "errata" page, on their web
+site.  You'll need all the "security updates" listed on the errata pages for
+Red Hat 6.0 and 6.1.  Our current program will download all the required
+patches, but it does not check the authenticity and integrity of the patch.
+The danger is this: if Red Hat's web site gets cracked, and one of their
+patches is made into a "trojan horse," anyone who downloads this patch will
+have a major problem.
+
+To prevent this, Red Hat "signs" each RPM with a private key.  Since this
+key should not be stored on the web server, and is usually password
+protected, the cracker could not resign the trojaned RPM.  You can check
+these signatures by downloading Red Hat's public keys and verifying
+signatures on packages.
+
+Our PatchDownload program doesn't yet check signatures.  You can, and should, 
+do this yourself, using pgp/gpg to check signatures of any RPMs that you 
+download.

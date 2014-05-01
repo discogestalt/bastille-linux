@@ -1,0 +1,27 @@
+FILE: DisableUserTools.pm
+
+LABEL: compiler
+SHORT_EXP: "Many system crackers use the compiler on systems that they
+compromise to compile additional tools.  These tools are used both to
+escalate privilege on the compromised system and to attack other systems.
+
+Disabling the gcc compiler on your system can provide a roadblock, slowing
+the attacker down and prevent some attacks entirely.
+
+If this machine is a dedicated server or firewall and thus does not have
+users who need to compile programs, this action is strongly recommended.
+This action fits best practice on dedicated servers.  Otherwise,  please
+carefully consider whether you will be inconveniencing your users by
+disabling the compiler.  If you do chose to disable it, we'll do so by
+only allowing root access to the compiler."
+QUESTION: "Would you like to disable the gcc and/or g++ compiler? [N]"
+QUESTION_AUDIT: "Are the gcc and/or g++ compiler disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: limitsconf
+NO_CHILD: limitsconf
+PROPER_PARENT: inetd_general

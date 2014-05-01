@@ -1,0 +1,111 @@
+
+Note: FTP is quite troublesome with the 'ipchains' tools that are used in
+the 2.2 series of Linux kernels. With the introduction of 'iptables' and
+the netfilter framework in the 2.4 kernels, the "conntrack" system can
+be used to easily handle normal FTP transactions, both "active" and
+"passive", for both FTP clients and servers. This document should help 
+you understand the issues surrounding FTP with Linux 2.2 and 'ipchains'.
+							-Peter Watkins
+							 2001/04/11
+
+README.FTP
+
+SECURITY ASPECTS & TROUBLESHOOTING FOR FTP
+
+FTP is a problematic protocol. 
+
+There are two different connection types that are used in FTP. 
+
+The first is the "control" connection. This connection is initiated by the 
+FTP client software. This is a connection from client:X to server:ftp (port 21)
+	client:X -> server:ftp
+where "X" is some high (>1023) port number. From a firewall standpoint, 
+the control connection is very straightforward and easy to accommodate.
+
+The second is the "data" connection. There are two types of data connection:
+"active" and "passive".
+
+"active" connections are often considered the normal means of getting data
+from an FTP server. Here are the steps involved in active data transfer:
+ - the FTP client binds to a high port on the client machine (call it "Y")
+ - the FTP client tells the FTP server what port it has chosen
+ - the FTP server initiates a connection from its ftp-data port (port 20)
+   to the port chosen by the FTP client
+So the active connection looks like
+	server:ftp-data -> client:Y
+
+"passive" connections work basically like this:
+ - the FTP client asks the FTP server to use a passive connection for data
+ - the FTP server binds to a high port (call it "N") 
+ - the FTP server tells the client which port it has chosen
+ - the FTP client connects from some high port to the port chosen by the server
+So the passive connection looks like
+	client:Z -> server:N
+
+There are firewall problems with both data transfer methods, at least as long
+as we're using more primitive tools like 'ipchains' that cannot keep track of 
+stateful information; e.g. ipchains cannot tell if a connection from some 
+remote machine's ftp-data port is servicing an FTP session, or simply probing
+high TCP ports.
+
+The problem with active FTP was just described. FTP clients can bind to 
+virtually any high port on the client machine, and we really don't want to 
+allow _any_ remote machine to initiate a connection to _any_ high port on 
+this machine (which is why we have those awful TCP_BLOCKED_SERVICES settings).
+
+Briefly, "active" FTP can be a risk for the client.
+
+The problem with passive FTP is that the FTP _server_ must be prepared to 
+accept TCP connections on various high ports. We don't want to allow _any_ 
+remote machine to connect to high ports on the FTP server, either.
+
+Briefly, "passive" FTP requires loosening firewall restrictions on the server.
+
+CONFIGURING YOUR SERVER TO ALLOW "PASSIVE" FTP CLIENTS
+
+The recommended way to allow your FTP server to handle passive clients is 
+to configure it to use a certain range of ports, and only loosen the firewall
+restrictions for those ports.
+
+By default, wu-ftpd (the server shipped with Red Hat Linux and many other 
+Linux distributions), will randomly choose any high port on the server machine
+for data connections. This can be changed in the /etc/ftpaccess configuration 
+file.  I suggest picking a range of 2000 or so ports, with the lowest port at 
+least 10000, as many Unix applications like to make use of ports < 10000. To 
+configure wu-ftpd to use only ports 15000 - 17000 for passive FTP, you would
+add the following line to /etc/ftpaccess:
+
+passive ports 0.0.0.0/0 15000 17000
+
+Once you've done that, you need to modify the ipchains firewall, in the file
+/etc/rc.d/init.d/bastille-firewall so that it will accept connections on those
+ports. The variables you will want to look at are TCP_PUBLIC_SERVICES and 
+TCP_INTERNAL_SERVICES. For this example, you would add " 15000:17000" to the 
+variable. For instance, if your server _only_ provided FTP service to "public"
+hosts, and only provided telnet and FTP service to "internal" hosts, you would 
+use the following variable definitions:
+
+TCP_PUBLIC_SERVICES="ftp 15000:17000"
+TCP_INTERNAL_SERVICES"telnet ftp 15000:17000"
+
+TROUBLESHOOTING PROBLEMS WITH FTP CLIENT APPS ON BASTILLE SYSTEMS
+
+If you have FORCE_PASV_FTP set to the default, "N", your machine will accept
+active FTP connections on all high ports (except those explicitly blocked). So
+if you have trouble getting data (note that even the "dir" command has to get
+data, albeit simply a list of files) with FORCE_PASV_FTP at "N", then you
+probably have a TCP port blocked that should not be blocked. Use 'lsof -i' (as
+root) to get a listing of all ports that are listening for services, and see if
+your TCP_BLOCKED_SERVICES lists ports that are not actually listening for
+connections.
+
+If you have FORCE_PASV_FTP set to "Y", then you will want to make sure you're
+using your FTP client software in passive mode. Netscape's Web browser should
+not give you any problems, though with other clients you may need to specify
+passive mode (regular command-line FTP: issue the command "passive"; ncftp:
+issue the command "set passive on"; gftp: FTP -> Options -> General -> check 
+"Passive file transfers"). Requiring passive mode for your FTP clients can
+be somewhat of a hassle, but will generally make your machine more secure.
+
+-Peter Watkins
+ 2000/02/19

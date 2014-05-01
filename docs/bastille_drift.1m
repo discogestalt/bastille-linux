@@ -1,0 +1,167 @@
+.\" $Header: /cvsroot-fuse/bastille-linux/dev/working_tree/Bastille/docs/bastille_drift.1m,v 1.6 2007/06/14 22:10:10 fritzr Exp $
+.\" #Header: /cvsroot/bastille-linux/dev/working_tree/Bastille/docs/bastille_drift.1m,v 1.3 2006/10/27 16:06:03 fritzr Exp $
+.\" Delivered to both HP-UX and Linux; use only RIB fonts
+.TA b \" used by HP-UX troff
+.TH bastille_drift 1M "$Date: 2007/06/14 22:10:10 $" "" ""
+.SH "NAME"
+bastille_drift \- system configuration drift analyzer
+.SH "SYNOPSIS"
+Path (Linux):
+.BR /usr/sbin
+.PP
+Path (HP-UX):
+.BR /opt/sec_mgmt/bastille/bin
+.HP
+.BR bastille_drift
+[
+.B \-\-from_baseline
+[
+.I baseline
+]
+]
+.HP
+.BR bastille_drift
+[
+.B \-\-save_baseline
+[
+.I baseline
+] ]
+.HP
+.BR bastille_drift
+.SH "DESCRIPTION"
+.PP
+.BR bastille_drift
+is a program for creating Bastille\-configuration baselines and
+comparing the current state of the system to a saved baseline.
+This enables the user to see what, if any, changes had occurred relative to
+a saved baseline.
+.PP
+.BR Note:
+When first run successfully, Bastille automatically saves a baseline
+in the default location (see
+\f2FILES\f1
+below).
+.P
+Here are the different operations for
+.BR bastille_drift :
+.P
+.BR bastille_drift
+[
+.B \-\-from_baseline
+[
+.I baseline
+]
+]
+.PD 0
+.IP
+Compare system state to specified (or default) baseline.
+.PD
+.PP
+.BR bastille_drift
+[
+.B \-\-save_baseline
+[
+.I baseline
+] ]
+.PD 0
+.IP
+Establish or update specified (or default) baseline.
+.PD
+.P
+.BR bastille_drift
+.PD 0
+.IP
+Compare system state to default baseline.
+.PD
+.SH "DIAGNOSTICS"
+The following are diagnostics for
+.BR bastille_drift :
+.P
+.B "No Baseline exists with which to compare current state."
+.IP
+The default or specified baseline file doesn't exist.
+Either save a baseline to the named location, if you'd specified one,
+or save a baseline to the default location.
+.IP
+Note:
+.BR bastille
+will save a baseline to the default location
+on its first successful run.
+.PP
+.B "Attempt to establish system state not successful."
+.IP
+.BR bastille_drift
+ran
+.BR "bastille \-\-assessnobrowser"
+to establish system state, but the operation did not succeed.
+The
+.BR bastille_drift
+error log should contain enough detail to give the user sufficient
+information to prevent reoccurrence.
+.IP
+Note that
+.BR bastille_drift
+only detects a state change with regard to a configuration option
+manipulated Bastille, at the same granularity as that covered by the
+original Bastille question.
+Also, in a number of cases the input config will differ from the
+saved baseline.
+This is normal, and most often involved either
+manual\-action\-required questions, questions that don't affect the system
+state, or cases where no change was requested of Bastille,
+but
+.BR bastille
+was able to detect and baseline the initial state of the system.
+.IP
+Also, note that
+.BR bastille
+baselines detect the configured state of the system.  If only Bastille, SMH,
+or SAM are used to configure the system, those will, usually coincide with
+the dynamic state of the affected processes as well.
+In some cases, especially in the case of a manual file edit or configuration
+change,
+.BR bastille_drift
+may note a state different than the daemon.
+.IP
+EXAMPLE: a user changed
+.BR inetd.conf ,
+but forgot to run
+.BR "inetd \-c"
+to ask
+.BR inetd
+to reread its configuration file.
+.IP
+If you need to be certain that the dynamic state matches the configured one,
+reboot the system.
+.SH "DEPENDENCIES"
+Perl version 5.8.0 or greater,
+but we recommend 5.8.8 or greater for best performance.
+.SH "FILES"
+.BR /var/opt/sec_mgmt/bastille/baselines \0\0(HP\-UX)
+.P
+.BR /etc/Bastille/baselines \0\0(Linux)
+.IP
+Default location for baselines if path not specified
+.P
+.BR /var/opt/sec_mgmt/bastille/baselines/default_baseline \0\0(HP\-UX)
+.IP
+Default location for baseline if file not specified.
+This is also where Bastille stores an initial baseline here on its
+first successful run.
+.P
+.BR /var/opt/sec_mgmt/bastille/log/Assessment/Drift.txt \0\0(HP\-UX)
+.IP
+Location of drift report/diff resulting from assessment
+.SH "SEE ALSO"
+perl(1),
+bastille(1M).
+.\"
+.\" ---- BEGIN output from makeflit, Mon Nov 27 13:51:39 2006
+.\" index - marker
+.\" index@\f1analyzer; system configuration drift@@@\f3bastille_drift(1M)\f1
+.\" index@\f1configuration drift analyzer; system@@@\f3bastille_drift(1M)\f1
+.\" index@\f1drift analyzer; system configuration@@@\f3bastille_drift(1M)\f1
+.\" index@\f1system configuration drift analyzer@@@\f3bastille_drift(1M)\f1
+.\" index@\f4bastille_drift\f1 \- system configuration drift analyzer@@@\f3bastille_drift(1M)\f1
+.\" toc - marker
+.\" toc@\f3bastille_drift(1M)\f1:\0\0\f4bastille_drift\f1@@@system configuration drift analyzer

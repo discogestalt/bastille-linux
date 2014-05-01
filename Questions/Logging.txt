@@ -1,0 +1,101 @@
+FILE: Logging.pm
+
+LABEL: morelogging
+SHORT_EXP: "We would like to configure additional logging for your system.
+We will give you the option to log to a remote host, if your site already
+has one.  We will add two additional logging files to the default setup and
+will also log some status messages to the 7th and 8th virtual terminals
+(the ones you'll see when you hit ALT-F7 and ALT-F8).  This additional
+logging will not change the existing log files at all, so this is by no means
+a \"risky\" move."
+QUESTION: "Would you like to add additional logging? [Y]"
+QUESTION_AUDIT: "Has additional logging been added?"
+REQUIRE_DISTRO: RH MN RHEL RHFC DB SE7.2 SE7.3 SE8.0 SE9.0 SE9.1 SE9.2 SESLES8 SESLES9 TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP: "This script is adding additional logging files:
+
+/var/log/kernel       --    kernel messages
+/var/log/syslog       --    messages of severity \"warning\" and \"error\"
+
+Also, if you check the 7th and 8th TTY's, by hitting ALT-F7 or ALT-F8,
+you'll find that we are now logging to virtual TTY's as well.  If you
+try this, remember that you can use ALT-F1 to get back to the first
+virtual TTY."
+NO_EXP:
+YES_CHILD: remotelog
+NO_CHILD: pacct
+SKIP_CHILD: pacct
+PROPER_PARENT: consolelogin
+
+LABEL: remotelog
+SHORT_EXP: "If you already have a remote logging host, we can set this
+machine to log to it."
+QUESTION: "Do you have a remote logging host? [N]"
+REQUIRE_DISTRO: RH MN RHEL RHFC DB SE7.2 SE7.3 SE8.0 SE9.0 SE9.1 SE9.2 SESLES TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: remotelog_host
+NO_CHILD: pacct
+SKIP_CHILD: pacct
+PROPER_PARENT: morelogging
+
+LABEL: remotelog_host
+SHORT_EXP: "What is the IP address of the machine you normally log to?
+Remember, this should be a machine already configured to accept logging.
+If you have no such machine, select <Back> and change your answer.
+
+Note: we ask for an IP address because this is safer -- it avoids DNS cache
+      poisoning attacks on logging.  You may use a hostname, but it should be
+      added to your /etc/hosts file..."
+QUESTION: "What is the IP address of the machine you want to log to? [127.0.0.1]"
+REQUIRE_DISTRO: RH MN RHEL RHFC DB SE7.2 SE7.3 SE8.0 SE9.0 SE9.1 SE9.2 SESLES TB
+DEFAULT_ANSWER: 127.0.0.1
+YN_TOGGLE: 0
+YES_CHILD: pacct
+NO_CHILD: pacct
+PROPER_PARENT: remotelog
+
+LABEL: pacct
+SHORT_EXP: "Linux has the ability to log which commands are run when and by
+whom.  This is extremely useful in trying to reconstruct what a potential
+cracker actually ran.  The drawbacks are that the logs get large quickly (a
+log rotate module is included to offset this), the parameters to commands
+are not recorded, and, like all log files, the accounting log is removable if the
+attacker has root.
+
+As this is rather disk and CPU intensive, please choose NO unless you have
+carefully considered this option."
+QUESTION: "Would you like to set up process accounting? [N]"
+QUESTION_AUDIT: "Is process accounting set up?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: laus
+NO_CHILD: laus
+PROPER_PARENT: morelogging
+
+LABEL: laus
+SHORT_EXP: "The Linux Auditing Subsystem, or LAuS, provides a central 
+security event monitoring technology.  It logs security-relevant kernel
+subroutine calls, or syscalls, including the parameters the syscalls 
+are called with and the success or failure-related return code.  The
+relevant system daemon is auditd."
+QUESTION: "May we activate LAuS?"
+QUESTION_AUDIT: "Is LAuS active?"
+REQUIRE_DISTRO: RH SE7.2 SE7.3 SE8.0 SE9.0 SE9.1 SE9.2 SESLES8 SESLES9 
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: minimalism
+NO_CHILD: minimalism
+PROPER_PARENT: pacct

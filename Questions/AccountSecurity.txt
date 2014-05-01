@@ -1,0 +1,1085 @@
+FILE: AccountSecurity.pm
+
+LABEL: protectrhost
+SHORT_EXP: "As mentioned earlier, the r-tools (rlogin, rcp, rsh/remsh, etc)
+are now considered insecure because they use IP-based authentication
+methods which can be easily fooled.  Unfortunately, many users and admins
+are not aware of this danger.  Bastille can prevent users and other
+admins from opening up dangerous holes in your system security by
+restricting rhosts by modifying PAM files(if applicable), removing
+execute permission from rshd/remshd and rlogind, and commenting out the
+services in your inetd.conf file.  This will disable both the \"client\"
+and \"server\" sides of these tools."
+LONG_EXP: "The BSD r-tools rely on IP-based authentication, which means
+that you can allow anyone with (for instance) root access on 192.168.1.1
+have root access on 192.168.1.2.  Administrators and other users have
+traditionally found this useful, as it lets them connect from one host to
+another without having to retype a password.  The .rhosts file contains the
+names of the accounts and machines that are considered to be trusted.
+
+The problem with IP-based authentication, however, is that an intruder can
+craft \"spoofed\" or faked packets which claim to be from a trusted user
+on a trusted machine.  Since the r-tools rely entirely on IP addresses
+(and remote username) for authentication, a spoofed packet will be
+accepted as real.
+
+Some of your users, or even possibly other administrators for this machine,
+might not be aware of the security problems with the BSD r-tools.  If this is
+the case, they might create .rhosts files that would potentially allow
+crackers access to the machine.  This option will disable the use of those
+r-tools both from your machine and as a means of logging into your machine."
+QUESTION: "Should Bastille disable clear-text r-protocols that use IP-based authentication? [Y]"
+QUESTION_AUDIT: "Are clear-text r-protocols that use IP-based authentication disabled?"
+REQUIRE_DISTRO: LINUX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: passwdage
+NO_CHILD: passwdage
+PROPER_PARENT: suidXFree86
+
+LABEL: passwdage
+SHORT_EXP: "We can set the default password aging on accounts here, such
+that accounts are disabled if the password has not changed within the last
+60 days.  At some point before the 60 days are up, the user will be
+prompted to change his or her password.  This measure keeps passwords
+fresh and also prevents inactive accounts from being attacked by system
+crackers."
+LONG_EXP: "Your operating system's default behavior, which we would
+change here, is to disable an account when the password hasn't changed
+in 99,999 days.  This interval is too long to be useful.  We can set the
+default to 60 days.  At some point before the 60 days have passed, the
+system will ask the user to change his or her password.  At the end of the
+60 days, if the password has not been changed, the account will be
+temporarily disabled.  We'll make sure this warning period is at least
+5 days long.  We would make this change in /etc/login.defs."
+QUESTION: "Would you like to enforce password aging? [Y]"
+QUESTION_AUDIT: "Is password aging enforced?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: cronuser
+NO_CHILD: cronuser
+PROPER_PARENT: protectrhost
+
+LABEL: cronuser
+SHORT_EXP: "Cron allows users to submit jobs for the system to do at a
+particular, possibly recurring time.  It can be very useful, but also has a very
+real potential for abuse by either users or system crackers.  If you choose
+to restrict the use of cron to system administrators, you will still be able to
+allow individual users the use of cron at a later date."
+LONG_EXP: "Cron allows users to submit jobs for the system to do at a
+particular, possibly recurring time.  Cron can be particularly useful for
+admins, giving them the ability to have the system check logs every night at
+midnight or confirm file integrity every hour.  On the other hand, being
+able to execute jobs later or automatically represents an abusable privilege
+for users and also makes their actions slightly harder to track.
+
+Many sites choose to restrict cron to administrative accounts.  We suggest
+this action to new admins especially, until they understand more about how
+cron can be abused and know more about which users need access to cron.
+We would like to create the /etc/cron.allow file of users who may use cron.
+You can add to that later.  If we don't create this file, all users will be
+allowed to use cron."
+QUESTION: "Would you like to restrict the use of cron to administrative
+accounts? [Y]"
+QUESTION_AUDIT: "Is the use of cron restricted to administrative accounts?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: atuser
+NO_CHILD: atuser
+PROPER_PARENT: passwdage
+
+LABEL: atuser
+SHORT_EXP: "At allows users to submit jobs for the system to do at a
+particular time.  It can be very useful, but also has a very
+real potential for abuse by either users or system crackers.  If you choose
+to restrict the use of at to system administrators, you will still be able to
+allow individual users the use of it at a later date."
+LONG_EXP: "At allows users to submit jobs for the system to do at a
+particular time.  At can be particularly useful for admins, giving them the ability
+to defer jobs to times when the system is otherwise unused.  On the other hand, being
+able to execute jobs later or automatically represents an abusable privilege
+for users and also makes their actions slightly harder to track.
+
+Many sites choose to restrict at to administrative accounts.  We suggest
+this action to new admins especially, until they understand more about how
+at can be abused and know more about which users need access to at.
+We would like to create the /etc/at.allow file of users who may use at.
+You can add to that later.  If we don't create this file, all users will be
+allowed to use at."
+QUESTION: "Would you like to restrict the use of at to administrative accounts? [Y]"
+QUESTION_AUDIT: "Is the use of at restricted to administrative accounts?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: crontabs_file
+NO_CHILD: crontabs_file
+PROPER_PARENT: cronuser
+
+LABEL: crontabs_file
+SHORT_EXP: "Since a variety of administrators, scripts and users edit crontab files,
+sometimes these files can have incorrect permissions.  Bastille can ensure these files
+can only be read and changed by the root user.  This is a safe thing to do, since
+these files should be only read and written-to by root, via the crontab command."
+QUESTION: "Would you like to ensure the crontab files are only accessible by root? [Y]"
+QUESTION_AUDIT: "Are the crontab files only accessible by root?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: user_rc_files
+NO_CHILD: user_rc_files
+PROPER_PARENT: atuser
+
+LABEL: user_rc_files
+SHORT_EXP: ".shosts, .rhosts, and .netrc are files that sit in the home directories
+of users and are used to create trust relationships between given users on
+a system and other systems.  Such non-interactive trust is dangerous as it
+creates the potential for an attacker to leverage those trust relationships if they
+manage to expose an account.  If there is no business need for static trust,
+strongly consider deleting these files."
+QUESTION: "Would you like delete .shosts, .rhosts, and .netrc from the local user accounts? [Y]"
+QUESTION_AUDIT: "Are .shosts, .rhosts, and .netrc removed from the local user accounts? [Y]"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: user_dot_files
+NO_CHILD: user_dot_files
+PROPER_PARENT: crontabs_file
+
+LABEL: user_dot_files
+SHORT_EXP: "Dot files, or those that begin with a \".\" are hidden from standard
+file lists, and often used for configuration.  That combination of being less
+visible and also used to change the behavior of he user account means that if
+a user or admin mistakenly sets an incorrect permission (perhaps via a loose umask),
+their account could be subject to attack.  This item will look at the local user account
+store, find the local home directories, and remove the world-writeable bit, if any.  This
+is a simple, and relatively safe operation."
+QUESTION: "Would you like remove world-write permission from local user account dot files? [Y]"
+QUESTION_AUDIT: "Are there world-writeable permissions set for local account dot files? [Y]"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: restrict_home
+NO_CHILD: restrict_home
+PROPER_PARENT: user_rc_files
+
+LABEL: restrict_home
+SHORT_EXP: "Sometimes admins make home directories world writable by accident, or
+sometimes they just leave the home directories world-readable.  Outside peer-collaboration,
+for which there many better ways to accomplish it, there's really no practical reason
+home directories should have these properties.  This item, if selected will
+remove world-visibility and group write from the local accounts' directories,
+in-effect executing chmod o-rwx,g-w <dir>."
+QUESTION: "Would you like to restrict the home directory permissions? [Y]"
+QUESTION_AUDIT: "Are the local account home directory permissions restricted?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: lock_account_nopasswd
+NO_CHILD: lock_account_nopasswd
+PROPER_PARENT: user_dot_files
+
+LABEL: lock_account_nopasswd
+SHORT_EXP: "Accounts with no passwords allow any user to execute arbitrary actions on
+your server.  Sometimes this is administrative error or oversight, but password-less
+accounts should always be against policy.  They invite attack.  This item will
+disable the accounts with no password."
+QUESTION: "Would you like to lock the local accounts with no password? [Y]"
+QUESTION_AUDIT: "Are the local accounts with no password locked or inoperative?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: serial_port_login
+NO_CHILD: serial_port_login
+PROPER_PARENT: restrict_home
+
+LABEL: serial_port_login
+SHORT_EXP: "The ability to login on a serial port besides the console is a pretty
+rare need.  Historically, these were used for terminal devices or modems, but it
+is unlikely that a site, barring a special need would need this capability.  This
+item will turn off the process that listens to the tty devices."
+QUESTION: "Would you like to disable all serial ports besides the console? [Y]"
+QUESTION_AUDIT: "Are all the serial ports besides the console disabled?"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: gui_login
+NO_CHILD: gui_login
+PROPER_PARENT: lock_account_nopasswd
+
+LABEL: gui_login
+SHORT_EXP: "Most servers do not have a graphics console directly attached, so
+do not need to run a graphics login.  Turning this off offers fewer targets to
+hackers, and can save system resources for those systems that do not have a graphics
+console (monitor)."
+QUESTION: "Would you like to disable the local graphical login? [Y]"
+QUESTION_AUDIT: "Is the local graphical login disabled?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: root_path
+NO_CHILD: root_path
+PROPER_PARENT: serial_port_login
+
+LABEL: root_path
+SHORT_EXP: "A longstanding best-practice in Unix system administration is that there
+should be no \"dot\" in root\'s path.  This item will remove the current
+working directory, \"dot\" from the root path startup scripts."
+LONG_EXP: "A longstanding best-practice in Unix system administration is that there
+should be no \"dot\" in root\'s path.  Having a dot means that the shell will look
+in the current directory for an executable.  This can cause a local command to
+either override a common administrative command, or cause a mistyped command to
+execute a local command.  This is dangerous as it allows malicious users to plant
+rogue commands in hopes that administrators either accidentally, or under the
+influence of a social engineering attack could run malicious software as root.
+This item will remove the current working directory, \"dot\" from the root path
+startup scripts."
+QUESTION: "Should Bastille remove the dot from the root path? [Y]"
+QUESTION_AUDIT: "Is there a dot in root\'s path as defined by root\'s startup scripts?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: block_system_accounts
+NO_CHILD: block_system_accounts
+PROPER_PARENT: gui_login
+
+LABEL: block_system_accounts
+SHORT_EXP: "System accounts are the ones that are originally provisioned on a new
+system, like bin, sys, uucp, et-cetera.  These accounts (except for root) exist
+to own files, processes, or system resources but are not generally logged into.
+Since these accounts have broad access to the system, Bastille recommends ensuring
+that they remain disabled.  This item will do that for the default system accounts."
+QUESTION: "Would you like to disable login access to the system accounts? [Y]"
+QUESTION_AUDIT: "system_accounts blocked?"
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: unowned_files
+NO_CHILD: unowned_files
+PROPER_PARENT: root_path
+
+LABEL: unowned_files
+SHORT_EXP: "There is no reason to leave a file owned by a user or group that
+does not have meaning to the system.  The concern is that if a
+user or group is later defined with the uid or gid that owns that file, it will inherit
+the files associated with the old uid and/or gid, thus exposing the data to potentially unauthorized access.
+This can happen when a user is deleted without cleaning up the file system.
+This item will look for files that are not owned by a defined system user
+and/or group and assign those files to bin."
+QUESTION: "Would you like to assign unowned files to the bin user? [Y]"
+QUESTION_AUDIT: "Is the file system free of unowned files?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: mesgn
+NO_CHILD: mesgn
+PROPER_PARENT: block_system_accounts
+
+LABEL: mesgn
+SHORT_EXP: "The command  mesg n forbids messages via write by revoking
+write permission to users without appropriate privilege on the user\'s
+terminal (see write(1)) description for mesgn.  Disabling this feature prevents
+some forms of social engineering, where an untrusted user attempts to contact
+users in real-time to solicit credentials or other sensitive data."
+QUESTION: "Would you like to set mesg n for all users? [Y]"
+QUESTION_AUDIT: "Is mesg set to n for all local accounts?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: umaskyn
+NO_CHILD: umaskyn
+PROPER_PARENT: unowned_files
+
+LABEL: umaskyn
+SHORT_EXP: "The umask sets the default permission for files that you create.
+Bastille can set one of several umasks in the default
+login configuration files.  These cover standard shells like csh and most
+Bourne shell variants like bash, sh, and ksh.  If you
+are going to install other shells, you may have to configure them
+yourself.  The only reason not to set at least a minimal default umask
+is if you are sure that you have already set one."
+QUESTION: "Do you want to set the default umask? [Y]"
+DEFAULT_ANSWER: 077
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB OSX
+DEFAULT_ANSWER: Y
+YN_TOGGLE: 1
+YES_EXP:
+NO_EXP:
+YES_CHILD: umask
+NO_CHILD: hidepasswords
+SKIP_CHILD: hidepasswords
+PROPER_PARENT: mesgn
+REG_EXP: "^Y$|^N$"
+
+LABEL: umask
+SHORT_EXP: "The umask sets the default permission for files that you
+create.  Bastille can set one of several umasks in the default
+login configuration files.  These cover most shells including csh and
+most of the Bourne shell variants like bash, sh, bsh, and ksh.
+Note that if you are going to install other shells, you may have to
+configure them yourself.  Please select one of the following or create your own:
+
+002  - Everyone can read your files & people in your group can alter them.
+
+022  - Everyone can read your files, but no one can write to them.
+
+077  - No one on the system can read or write your files."
+LONG_EXP: "The umask sets a default permission for files that you create.
+Bastille can set one of several umasks.  Please select one of the following
+or create your own:
+
+002  - Everyone can read your files & people in your group can alter them.
+
+022  - Everyone can read your files, but no one can write to them.
+
+027  - Only people in your group can read your files, no one can write to them.
+
+077  - No one on the system can read or write your files.
+
+In addition to configuring a umask for all of the user shells, HP-UX 11.22
+and later has an option in the /etc/default/security file to set the default
+system umask.  This parameter controls umask(2) of all sessions initiated via
+pam_unix(5) (which can then be overridden by the shell).
+
+NOTE: If your system is converted to trusted mode, this parameter
+will be overridden by the trusted system default umask, which is 077."
+QUESTION: "What umask would you like to set for users on the system? [077]"
+QUESTION_AUDIT: "What umask is default for users on the system(can be exceptions)?"
+DEFAULT_ANSWER: 077
+REQUIRE_DISTRO: LINUX HP-UX DB SE TB OSX
+YN_TOGGLE: 0
+YES_EXP:
+NO_EXP:
+YES_CHILD: hidepasswords
+NO_CHILD: hidepasswords
+PROPER_PARENT: umaskyn
+REG_EXP: "^[0-7]{3,4}$"
+
+LABEL: hidepasswords
+SHORT_EXP:  "Traditionally HP-UX has stored the encrypted password string
+for each user inside of the /etc/passwd file.  This has the disadvantage
+of allowing these encrypted strings to be viewable by anyone with access
+to the /etc/ file system (normally, all users).  Given the encrypted
+string an attacker can attempt to determine valid passwords for users
+on your system by using dictionary or brute force password cracking programs.
+
+This option will either convert to trusted mode HP-UX (if deemed necessary)
+or convert to shadow passwords.  More information is available if you click
+on the \"explain more\" button.  In short, either trusted mode or shadow
+passwords can have compatibility issues for applications which do their
+own authentication issues.  Trusted mode has more issues with applications
+designed for other operating systems, and certain multi-threaded Pluggable
+> Authentication Module (PAM) interactions.  Shadow mode has more issues
+with applications designed for older (11.11 and prior) versions of HP-UX.
+
+Trusted mode will be required if any of the following are true:  (a) You
+have HP-UX 11.20 or earlier, (b) You answer 'Yes' to a later question
+which requires conversion to trusted mode, or (c) your
+system is already in trusted mode (i.e. you convert to trusted mode
+before applying this configuration).
+
+Otherwise, Bastille will convert to shadow passwords."
+LONG_EXP: "Traditionally HP-UX has stored the encrypted password string
+for each user inside of the /etc/passwd file.  This has the disadvantage
+of allowing these encrypted strings to be viewable by anyone with access
+to the /etc/ file system (normally, all users).  Given the encrypted
+string an attacker can attempt to determine valid passwords for users
+on your system by using dictionary or brute force password cracking programs.
+
+For HP-UX 11.20 and prior, the system will be converted to trusted mode
+to hide the encrypted passwords.  In addition, a trusted system provides
+other useful security features such as auditing and login passwords
+with lengths greater than 8 characters.  Also, more options are
+available, such as password length requirements, and password
+aging.  (This, combined with other criteria, mean that HP-UX in
+trusted mode is \"C2 compliant.\")
+
+For HP-UX 11.22 and later, the encrypted passwords can be hidden by
+converting to \"shadowed\" passwords.  The encrypted string is removed
+from /etc/passwd and placed into the /etc/shadow
+file.  This file is only readable and accessible by root.
+
+Converting to trusted mode or shadow passwords may break compatibility with
+some of the software on your system.  Any program that does not use the
+standard interfaces to authenticate user passwords will be unable to access
+the encrypted password string and therefore unable to authenticate the user.
+Shadow passwords are used on several other versions of Unix(TM), so they are
+less likely to cause problems for cross-platform applications.  However,
+some versions of the tool \"sudo\" were incompatible with trusted mode HP-UX.
+
+LDAP (Lightweight directory access protocol) is compatible with shadow
+passwords, but not compatible with trusted mode, prior to 3.0.
+If you use LDAP(prior to 3.0), you should not answer Yes to
+any question which requires trusted mode.
+
+If you are using NIS, NIS+, or DCE authentication DO NOT convert to
+shadowed passwords  Shadowed passwords are incompatible with NIS (for
+good reason, since the encrypted passwords are sent in clear text over
+the network anyway).  The shadow password documentation still indicates
+that NIS+ and DCE are incompatible with shadowed passwords, so Bastille
+will not do the conversion if a conflict is detected.  For more information
+see the manual page for pwconv(1M) and nsswitch.conf(1M).
+
+NOTE:   After converting to shadowed passwords ensure that /etc/shadow is
+being backed up along with /etc/passwd.
+
+NOTE:   The Access Control List feature available on trusted systems is
+not supported on older versions of the JFS file system.  (You will need at
+least version 3.3 of JFS if you want to use this feature).
+
+WARNING: If you have a large number of accounts on this system, the
+conversion may take up to several minutes.
+
+(MANUAL ACTION MAY BE REQUIRED TO COMPLETE THIS CONFIGURATION,
+see TODO list for details)"
+QUESTION: "Would you like to hide the encrypted passwords on this system?"
+DEFAULT_ANSWER: Y
+QUESTION_AUDIT: "Are the encrypted passwords on this system hidden?"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: single_user_password
+NO_CHILD: single_user_password
+PROPER_PARENT: umaskyn
+
+LABEL: single_user_password
+SHORT_EXP: "By password protecting single-user mode you will provide
+limited protection against anyone who has physical access to the
+machine, because they cannot simply reboot and have root access
+without typing the password.  However, if an attacker has physical
+access to the machine and enough time, there is very little you can
+do to prevent unauthorized access.  This may be more problematic in the
+case when an authorized administrator messes up the machine and can't
+remember the password.
+
+Note:   For HP-UX 11.22 and prior, this requires conversion to trusted mode.
+Bastille will automatically do the conversion if you select this option.
+Trusted mode is incompatible with LDAP-UX client services prior to version 3.0
+and can cause other incompatibility issues with applications which do their
+own authentication."
+QUESTION: "Would you like to password protect single-user mode?"
+DEFAULT_ANSWER: N
+QUESTION_AUDIT: "Is single-user mode password protected?"
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP: "Integrity and PA-RISC systems have additional configuration options
+to secure the boot process.  These include lan-console passwords, the ability
+to disable lan access altogether, and others.  Since these settings are not
+configured in the OS, Bastille cannot perform this configuration.  Even so, you
+should consider using them, especially if physical or console-lan access is not
+strictly controlled.  Please refer to your hardware documentation for greater
+detail on these options."
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+YES_CHILD: system_auditing
+NO_CHILD: system_auditing
+PROPER_PARENT: hidepasswords
+
+LABEL: system_auditing
+QUESTION: "Do you want basic system security auditing enabled?"
+QUESTION_AUDIT: "Is basic system security auditing enabled?"
+SHORT_EXP: "By enabling basic system security auditing a subset of system calls
+will be logged.  The logging of these events produces system overhead so if
+this system is in a very performance sensitive role, the risk of not logging
+may be less than the risk of incurring a small amount of overhead.
+
+System events, which are defined in audevent(1M) man page, to be audited will
+include the admin, login, and moddac events.
+
+All of these events generate data about security sensitive system actions but
+should be rare enough that they do not generate too much overhead.
+
+NOTE: Depending on your environment, auditing may be more or less important.
+For completeness you should review the audevent(1M) man page to determine if
+you system requires more or less auditing.
+
+This feature requires converting to trusted mode, on versions prior to
+HP-UX 11.23 0505, so should not be selected if you wish to use LDAP or NIS on those
+systems.  If you prefer trusted mode rather than shadow passwords, selecting
+this option will force that conversion on HP-UX versions prior to
+HP-UX 11.23 0505."
+REQUIRE_DISTRO: not_HP-UX11.31SRPcont HP-UX
+YN_TOGGLE: 1
+DEFAULT_ANSWER: Y
+REG_EXP: "^[YN]$"
+YES_CHILD: ABORT_LOGIN_ON_MISSING_HOMEDIR
+NO_CHILD: ABORT_LOGIN_ON_MISSING_HOMEDIR
+PROPER_PARENT: single_user_password
+
+LABEL: ABORT_LOGIN_ON_MISSING_HOMEDIR
+QUESTION: "Do not allow logins unless the home directory exists?"
+QUESTION_AUDIT: "Are logins prohibited unless the home directory exists?"
+SHORT_EXP: "The ABORT_LOGIN_ON_MISSING_HOMEDIR parameter controls login
+behavior if a user's home directory does not exist.
+
+By default, login will use '/' as the home directory if the user's home
+directory does not exist.
+
+If you do set this parameter, the login session will exit if the user's
+home directory does not exist.
+
+NOTE:  This is applicable only for non-root users and only for services
+which use the \"login\" binary for authentication."
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+REQUIRE_DISTRO: HP-UX
+NO_CHILD: passwordpolicies
+YES_CHILD: passwordpolicies
+SKIP_CHILD: passwordpolicies
+PROPER_PARENT: system_auditing
+
+LABEL: passwordpolicies
+QUESTION: "Do you want to setup password policies?"
+SHORT_EXP: "Weak passwords can be easily compromised using a dictionary
+attack.  On the other hand, if the password policies seem too restrictive to your users,
+they may end up writing the password down (a very bad security practice.)
+Thus, it is important to set password policies which conform to your overall
+security policies but do not unduly burden your users.
+
+On HP-UX 11.11 and prior, this will ensure that the system is converted to
+trusted mode, enable password aging and allow you to change some basic
+defaults.  You should
+use SAM/SMH to further configure your policies.  For HP-UX 11.22 and later,
+Bastille is able to configure several of these policies on a more granular
+basis, and conversion to trusted mode is unnecessary for most options. Answering
+'Yes' to this question will ensure that your system is converted to shadowed
+passwords on HP-UX 11.22 and later.
+
+Trusted mode and password shadowing are incompatible with NIS (an insecure protocol),
+so if you wish to use NIS passwords on this system, you should not
+select this option.
+
+NOTE:  These are applicable only for non-root users and only for services
+which properly use PAM, Pluggable Authentication Module, for authentication.
+In addition, use of remote authentication stores like NIS, NIS+, and LDAP
+can also change the behavior of the system.  Bastille makes no attempt to manage
+or test the policy status of such remote authentication / policy stores.
+"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+REQUIRE_DISTRO: HP-UX
+NO_CHILD: NOLOGIN
+YES_CHILD: MIN_PASSWORD_LENGTH
+SKIP_CHILD: NOLOGIN
+PROPER_PARENT: ABORT_LOGIN_ON_MISSING_HOMEDIR
+
+LABEL: MIN_PASSWORD_LENGTH
+QUESTION: "What should the minimum length of NEW passwords be?"
+QUESTION_AUDIT: "What is the minimum password-length configured?"
+SHORT_EXP: "The MIN_PASSWORD_LENGTH parameter controls the minimum length
+of new passwords.  This policy will not be enforced for the root user on an
+untrusted system.
+
+MIN_PASSWORD_LENGTH=N   New passwords must contain at
+least N characters.  For untrusted systems N can be any
+value from 6 to 8.  For trusted systems N can be any
+value from 6 to 80.
+
+Long passwords are generally harder to crack than short ones, but enforcing
+long passwords may also increase the chance of users writing down their
+passwords (which is a very bad security practice)."
+DEFAULT_ANSWER: "8"
+REG_EXP: "^[6-9]$|^[1-7][0-9]$|^80$"
+EXPL_ANS: "7"
+YN_TOGGLE: 0
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: PASSWORD_HISTORY_DEPTHyn
+NO_CHILD: PASSWORD_HISTORY_DEPTHyn
+PROPER_PARENT: passwordpolicies
+
+LABEL: PASSWORD_HISTORY_DEPTHyn
+QUESTION: "Would you like to set a password history depth?"
+SHORT_EXP: "The PASSWORD_HISTORY_DEPTH parameter controls the password
+history depth.  A new password is checked only against the number of
+most recently used passwords stored in password history for a particular
+user.  A user is not allowed to re-use a previously used password that
+is stored in the history.
+
+Answering this question 'Yes' will cause the system to be converted
+to trusted mode and give you a chance to set the password history
+depth."
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+DEFAULT_ANSWER: "N"
+YES_CHILD: PASSWORD_HISTORY_DEPTH
+NO_CHILD: PASSWORD_MAXDAYS
+SKIP_CHILD: PASSWORD_MAXDAYS
+PROPER_PARENT: MIN_PASSWORD_LENGTH
+REQUIRE_DISTRO: HP-UX
+
+LABEL: PASSWORD_HISTORY_DEPTH
+QUESTION: "Enter the password history depth."
+QUESTION_AUDIT: "What is the default maximum number of days between password changes (-1 is unlimited)?"
+SHORT_EXP: "The PASSWORD_HISTORY_DEPTH parameter controls the password
+history depth.  A new password is checked only against the number of
+most recently used passwords stored in password history for a particular
+user.  A user is not allowed to re-use a previously used password that
+is stored in the history.
+
+This will cause the system to be converted to trusted mode.
+
+PASSWORD_HISTORY_DEPTH=N   A new password is checked against only the N
+most recently used passwords for a particular user.  Valid password
+history depths are between 1 and 10, inclusive."
+LONG_EXP: "The PASSWORD_HISTORY_DEPTH parameter controls the password
+history depth.  A new password is checked only against the number of
+most recently used passwords stored in password history for a particular
+user.  A user is not allowed to re-use a stored, previously used password.
+
+This will cause the system to be converted to trusted mode.
+
+PASSWORD_HISTORY_DEPTH=N   A new password is checked against only the N
+most recently used passwords for a particular user.
+
+A configuration of password history depth of 2 prevents users from
+alternating between two passwords.  The maximum password history depth
+supported is 10 and the minimum password history depth supported is 1.  A
+depth configuration of more than 10 will be treated as 10, and a depth
+configuration of less than 1 will be treated as 1.
+
+The password history depth configuration is on a system basis and is
+supported in trusted system for users in files repository only.  This
+feature does not support the users in NIS or NISPLUS repositories.  Once
+the feature is enabled, all the users on the system are subject to the
+same check.  If this parameter is not configured, the password history
+check feature is automatically disabled.  When the feature is disabled,
+the password history check depth is set to 1.
+
+A password change is subject to all of the other rules for a new password
+including a check with the current password."
+DEFAULT_ANSWER: 3
+YN_TOGGLE: 0
+EXPL_ANS: "1"
+REG_EXP: "^[1-9]$|^10$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: PASSWORD_MAXDAYS
+NO_CHILD: PASSWORD_MAXDAYS
+PROPER_PARENT: PASSWORD_HISTORY_DEPTHyn
+
+LABEL: PASSWORD_MAXDAYS
+QUESTION: "Enter the maximum number of days between password changes:"
+QUESTION_AUDIT: "What is the default maximum number of days between password changes (-1 is unlimited)?"
+SHORT_EXP: "This parameter controls the default maximum number of
+days that passwords are valid.  For systems running HP-UX 11.11 and
+HP-UX 11.0 setting this value will require a conversion to trusted
+mode. HP-UX 11.22 and later will require shadowed password conversion.
+In that case this parameter applies only to local non-root users.
+
+PASSWORD_MAXDAYS=N   A new password is valid for up to
+N days, after which the password must be changed.  Values between
+0 and 441 are acceptable.
+
+NOTE: If your system is not converted to trusted mode then this value
+will be rounded up to weeks for current users."
+DEFAULT_ANSWER: 182
+YN_TOGGLE: 0
+EXPL_ANS: "364"
+REG_EXP: "^[0-9]$|^[0-9][0-9]$|^[0-3][0-9][0-9]$|^4[0-3][0-9]$|^44[01]$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: PASSWORD_MINDAYS
+NO_CHILD: PASSWORD_MINDAYS
+PROPER_PARENT: PASSWORD_HISTORY_DEPTHyn
+
+LABEL: PASSWORD_MINDAYS
+QUESTION: "Enter the minimum number of days between password changes."
+QUESTION_AUDIT: "What is the default minimum number of days between password changes?"
+SHORT_EXP: "This parameter controls the default minimum number of
+days before a password can be changed.  For systems running HP-UX 11.11 and
+HP-UX 11.0 setting this value will require a conversion to trusted
+mode. HP-UX 11.22 and later will require shadowed password conversion.
+In that case this parameter applies only to local non-root users.  When used with
+password aging, this prevents users from immediately resetting expired passwords.
+
+PASSWORD_MINDAYS=N   A new password cannot be changed
+until at least N days since it was last changed.  Values between
+0 and 441 are acceptable, but it is wise to choose a value much
+less than the PASSWORD_MAXDAYS!
+
+However, if there is ever a need to temporarily give someone your password,
+(there are generally more secure alternatives) this option could prevent
+changing the password immediately following.
+
+NOTE: If your system is not converted to trusted mode then this value
+will be rounded up to weeks for current users."
+DEFAULT_ANSWER: "7"
+YN_TOGGLE: 0
+EXPL_ANS: "30"
+REG_EXP: "^[0-9]$|^[0-9][0-9]$|^[0-3][0-9][0-9]$|^4[0-3][0-9]$|^44[01]$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: PASSWORD_WARNDAYS
+NO_CHILD: PASSWORD_WARNDAYS
+PROPER_PARENT: PASSWORD_MAXDAYS
+
+LABEL: PASSWORD_WARNDAYS
+QUESTION: "Enter the number of days a user will be warned that their password will expire."
+QUESTION_AUDIT: "What is the default number of days a user will be warned that their password will expire?"
+SHORT_EXP: "This parameter controls the default number of days
+before password expiration that a user is to be warned
+that the password must be changed.  For systems running HP-UX 11.11 and
+HP-UX 11.0 setting this value will require a conversion to trusted
+mode. HP-UX 11.22 and later will require shadowed password conversion.
+In that case this parameter applies only to local non-root users.
+
+PASSWORD_WARNDAYS=N   Users are warned N days before
+their password expires.  Values between 0 and 441 are
+acceptable, though it doesn't make sense for this value
+to be larger than PASSWORD_MAXDAYS.
+
+NOTE: If your system is not converted to trusted mode then this value
+will be rounded up to weeks for current users."
+DEFAULT_ANSWER: 28
+YN_TOGGLE: 0
+EXPL_ANS: "14"
+REG_EXP: "^[0-9]$|^[0-9][0-9]$|^[0-3][0-9][0-9]$|^4[0-3][0-9]$|^44[01]$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: NOLOGIN
+NO_CHILD: NOLOGIN
+PROPER_PARENT: PASSWORD_MINDAYS
+
+LABEL: NOLOGIN
+QUESTION: "Should non-root users be disallowed from logging in if /etc/nologin exists?"
+QUESTION_AUDIT: "Are non-root users prohibited from logging in if /etc/nologin exists?"
+SHORT_EXP: "The NOLOGIN parameter controls whether non-root login can be
+disabled by the /etc/nologin file.
+
+If you answer \"Y\", the NOLOGIN parameter will be set to 1.  When a non-root
+user tried to login, the system will display the contents of the /etc/nologin
+file and exit if the /etc/nologin file exists.
+
+This can be useful for system maintenance or if you wish to disallow non-root
+logins completely. In general this feature gives you a more granular control
+of your system thus enhancing your ability to secure and validate your system
+configuration before your system is threatened by local users.
+
+NOTE:  This is applicable only for non-root users and only for services
+which use the \"login\" binary for authentication.
+"
+DEFAULT_ANSWER: "Y"
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: NUMBER_OF_LOGINS_ALLOWEDyn
+NO_CHILD: NUMBER_OF_LOGINS_ALLOWEDyn
+PROPER_PARENT: passwordpolicies
+
+LABEL: NUMBER_OF_LOGINS_ALLOWEDyn
+QUESTION: "Do you want to set a maximum number of logins per user?"
+SHORT_EXP: "The NUMBER_OF_LOGINS_ALLOWED parameter controls the number of
+simultaneous logins allowed per user.  This is applicable only for non-root
+users.  This may be useful in limiting the sharing of user accounts and
+alerting users to a compromised account.
+
+NOTE:  This is applicable only for non-root users and only for services
+which use the \"login\" binary for authentication.
+"
+DEFAULT_ANSWER: "N"
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: NUMBER_OF_LOGINS_ALLOWED
+NO_CHILD: AUTH_MAXTRIESyn
+SKIP_CHILD: AUTH_MAXTRIESyn
+PROPER_PARENT: NOLOGIN
+
+LABEL: NUMBER_OF_LOGINS_ALLOWED
+QUESTION: "Enter the maximum number of logins per user."
+QUESTION_AUDIT: "What is the maximum number of logins per user (0 is unlimited)?"
+SHORT_EXP: "The NUMBER_OF_LOGINS_ALLOWED parameter controls the number of
+simultaneous logins allowed per user.  This is applicable only for non-root
+users.  This may be useful in limiting the sharing of user accounts and
+alerting users to a compromised account.
+
+NUMBER_OF_LOGINS_ALLOWED=0   Any number of logins are allowed per user.
+
+NUMBER_OF_LOGINS_ALLOWED=N   N number of logins are allowed per user.
+
+NOTE:  This is applicable only for non-root users and only for services
+which use the \"login\" binary for authentication.
+
+NOTE:  Reasonable values are small and should always be less than 1000.
+"
+DEFAULT_ANSWER: 1
+REQUIRE_DISTRO: HP-UX
+YN_TOGGLE: 0
+YES_CHILD: AUTH_MAXTRIESyn
+SKIP_CHILD: AUTH_MAXTRIESyn
+EXPL_ANS: "1"
+REG_EXP: "^[0-9]{1,3}$"
+PROPER_PARENT: NUMBER_OF_LOGINS_ALLOWEDyn
+
+LABEL: AUTH_MAXTRIESyn
+QUESTION: "Do you want an account to be locked after too many consecutive authentication failures?"
+SHORT_EXP: "The AUTH_MAXTRIES parameter controls whether an account is locked after too many
+consecutive authentication failures.  It does not apply to trusted systems.  This parameter is
+supported for users in all name server switch repositories, such as local, NIS and LDAP.
+"
+DEFAULT_ANSWER: "N"
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: AUTH_MAXTRIES
+NO_CHILD: SU_DEFAULT_PATHyn
+SKIP_CHILD: SU_DEFAULT_PATHyn
+PROPER_PARENT: NUMBER_OF_LOGINS_ALLOWEDyn
+
+LABEL: AUTH_MAXTRIES
+QUESTION: "Enter the maximum number of consecutive failed authentication attempts allowed."
+QUESTION_AUDIT: "What is the maximum number of failed authentication attempts?"
+SHORT_EXP: "The AUTH_MAXTRIES parameter controls whether an account is locked after too many
+consecutive authentication failures.
+
+AUTH_MAXTRIES=0   Any number of authentication retries is allowed.
+
+AUTH_MAXTRIES=N   An account is locked after N+1 consecutive authentication
+                  failures.
+"
+DEFAULT_ANSWER: 10
+REQUIRE_DISTRO: HP-UX
+YN_TOGGLE: 0
+YES_CHILD: SU_DEFAULT_PATHyn
+SKIP_CHILD: SU_DEFAULT_PATHyn
+EXPL_ANS: "10"
+REG_EXP: "^[0-9]{1,3}$"
+
+LABEL: SU_DEFAULT_PATHyn
+QUESTION: "Do you want to set a default path for the su command?"
+SHORT_EXP: "The SU_DEFAULT_PATH parameter defines a new default PATH
+environment value to be set when su to a non-super-user account is
+done.  Refer to su(1).
+
+This ensures that a su session will always have a default PATH value,
+preventing the inheritance of a poisoned PATH variable from your current
+login session.
+
+The PATH environment variable is set to new_PATH when the su command
+is invoked.  Other environment values are not changed.  The path value
+is not validated.  This parameter does not apply to a superuser account,
+and is applicable only when the "-" option is not used along with su
+command."
+DEFAULT_ANSWER: "N"
+REQUIRE_DISTRO: HP-UX
+YN_TOGGLE: 1
+REG_EXP: "^[YN]$"
+YES_CHILD: SU_DEFAULT_PATH
+NO_CHILD: rootttylogins
+SKIP_CHILD: rootttylogins
+PROPER_PARENT: NUMBER_OF_LOGINS_ALLOWEDyn
+
+LABEL: SU_DEFAULT_PATH
+QUESTION: "Enter the new PATH upon su"
+QUESTION_AUDIT: "What is the new PATH upon su?"
+SHORT_EXP: "The SU_DEFAULT_PATH parameter defines a new default PATH
+environment value to be set when su to a non-super-user account is
+done.  Refer to su(1).
+
+SU_DEFAULT_PATH=new_PATH
+
+This ensures that a su session will always have a default PATH value,
+preventing the inheritance of a poisoned PATH variable from you current
+login session.
+
+The PATH environment variable is set to new_PATH when
+the su command is invoked.  Other environment values are
+not changed. The path value is not validated.  This
+parameter does not apply to a super-user account, and is
+applicable only when the "-" option is not used along
+with su command."
+DEFAULT_ANSWER: "/sbin:/usr/sbin:/bin:/usr/bin"
+EXPL_ANS: "/usr/bin"
+REG_EXP: "^([A-Za-z\/:])*$"
+REQUIRE_DISTRO: HP-UX
+YES_CHILD: rootttylogins
+SKIP_CHILD: rootttylogins
+PROPER_PARENT: SU_DEFAULT_PATHyn
+
+LABEL: rootttylogins
+SHORT_EXP: "You can restrict which tty's root can login on.  Some sites choose
+to restrict root logins, so that an admin must login with an ordinary user
+account and then use su to become root."
+LONG_EXP: "You can restrict which tty's root can login on.  Some sites choose
+to restrict root logins, so that an admin must login with an ordinary user
+account and then use su to become root.
+
+This can stop an attacker who has only been able to steal the root password
+from logging in directly.  He has to steal a second account's password to
+make use of the root password via the ttys."
+QUESTION: "Should we disallow root login on tty's 1-6? [N]"
+QUESTION_AUDIT: "Are root logins on tty's 1-6 prohibited?"
+REQUIRE_DISTRO: LINUX DB SE TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: create_securetty
+NO_CHILD: create_securetty
+PROPER_PARENT: SU_DEFAULT_PATHyn
+
+LABEL: create_securetty
+SHORT_EXP: "Bastille can restrict root from logging into a tty over the network.
+This will force administrators to log in first as a non-root user, then
+su to become root.  Root logins will still be permitted on the console and
+through services that do not use tty's ( e.g. HP-UX Secure Shell ).
+
+This can stop an attacker who has only been able to steal the root password
+from logging in directly to a tty.  The attacker has to steal a second account's
+password to make use of the root password via the network, or gain access to a
+non-tty login mechanism.
+
+MAKE SURE that you can login using a non-root account before you do this,
+or you will obviously need access to the console or a non-tty remote login
+mechanism, e.g. Secure Shell, to login."
+QUESTION: "Should Bastille disallow root logins from network TTYs? [N]"
+QUESTION_AUDIT: "Are root logins from network TTYs disallowed?"
+REQUIRE_DISTRO: HP-UX
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: removeaccounts
+NO_CHILD: removeaccounts
+PROPER_PARENT: rootttylogins
+
+LABEL: removeaccounts
+SHORT_EXP: "Most operating systems ship with a number of accounts that are
+extraneous or at least not used by systems that have a specific purpose.
+Bastille can remove extraneous accounts from the system.  If you choose
+Yes, the next question will ask you for a list of accounts and will
+recommend a list to you."
+QUESTION: "Should Bastille ask you for extraneous accounts to delete?"
+QUESTION_AUDIT: "Have extraneous accounts been deleted?"
+REQUIRE_DISTRO: RHEL SLES
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: removeaccounts_list
+NO_CHILD: removegroups
+SKIP_CHILD: removegroups
+PROPER_PARENT: create_securetty
+
+LABEL: removeaccounts_list
+SHORT_EXP: "Most operating systems ship with a number of accounts that are
+extraneous or at least not used by systems that have a specific purpose.
+Bastille can remove extraneous accounts from the system.
+
+Please specify a list of accounts to delete in a space-separated list.
+
+Samples follow:
+
+Red Hat Enterprise Linux 3: gopher, games
+SuSE Enterprise 9: games, uucp"
+QUESTION: "Which extraneous accounts should Bastille delete (space-separated) ?"
+REQUIRE_DISTRO: RHEL SLES
+DEFAULT_ANSWER: games gopher
+YN_TOGGLE: 0
+REG_EXP: "^.*$"
+YES_CHILD: removegroups
+NO_CHILD: removegroups
+SKIP_CHILD: removegroups
+PROPER_PARENT: removeaccounts
+
+LABEL: removegroups
+SHORT_EXP: "Most operating systems ship with a number of groups that are
+extraneous or at least not used by systems that have a specific purpose.
+Bastille can remove extraneous groups from the system.  If you choose
+Yes, the next question will ask you for a list of groups and will
+recommend a list to you."
+QUESTION: "Should Bastille ask you for extraneous groups to delete?"
+QUESTION_AUDIT: "Have extraneous groups been deleted?"
+REQUIRE_DISTRO: SLES RHEL
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_CHILD: removegroups_list
+NO_CHILD: forbiduserview
+SKIP_CHILD: forbiduserview
+PROPER_PARENT: removeaccounts
+
+LABEL: removegroups_list
+SHORT_EXP: "Most operating systems ship with a number of groups that are
+extraneous or at least not used by systems that have a specific purpose.
+Bastille can remove extraneous groups from the system.
+
+Please specify a list of groups to delete in a space-separated list.
+
+A sample list follows:
+
+SuSE Enterprise 9: games, modem, xok"
+QUESTION: "Which extraneous groups should Bastille delete (space-separated) ?"
+REQUIRE_DISTRO: SLES RHEL3
+DEFAULT_ANSWER: games modem
+YN_TOGGLE: 0
+REG_EXP: "^.*$"
+YES_CHILD: forbiduserview
+NO_CHILD: forbiduserview
+SKIP_CHILD: forbiduserview
+PROPER_PARENT: removegroups
+
+LABEL: forbiduserview
+SHORT_EXP: "By default in Linux-Mandrake, when using the graphical login,
+you can see a list of all users who login to the system.  This can be a
+minor security issue, as it lets an attacker know about every user account
+on the system.  We can turn this feature off."
+LONG_EXP: "By default in Linux-Mandrake, when using the graphical login,
+you can see a list of all users who login to the system.  This can be a
+minor security issue, as it lets an attacker know about every user account
+on the system.  We can turn this feature off."
+QUESTION: "Should we deactivate the graphical login's user list display? [N]"
+QUESTION_AUDIT: "Is the graphical login's user list display deactivated?"
+REQUIRE_DISTRO: MN TB
+DEFAULT_ANSWER: N
+YN_TOGGLE: 1
+REG_EXP: "^Y$|^N$"
+YES_EXP:
+NO_EXP:
+YES_CHILD: protectgrub
+NO_CHILD: protectgrub
+PROPER_PARENT: removegroups

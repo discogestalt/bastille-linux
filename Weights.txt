@@ -1,0 +1,188 @@
+Weights: Bastille Default Weights
+AccountSecurity.cronuser=1
+AccountSecurity.passwdage=1
+AccountSecurity.rootttylogins=1
+AccountSecurity.umaskyn=1
+# These next two items aren't audited, as they're really part of another item.
+AccountSecurity.umask=0
+AccountSecurity.removeaccounts_list=0
+AccountSecurity.removegroups_list=0
+########## Re-examine these
+AccountSecurity.protectrhost=0
+AccountSecurity.removeaccounts=0
+AccountSecurity.removegroups=0
+#
+Apache.apacheoff=1
+# The next two are not graded as they aren't standard practice.
+Apache.bindapachelocal=0
+Apache.bindapachenic=0
+#
+Apache.symlink=1
+Apache.ssi=1
+Apache.cgi=1
+# This item isn't audited, as it's part of another item.
+Apache.bindapacheaddress=0
+#
+Apache.apacheindex=1
+BootSecurity.protectgrub=1
+BootSecurity.protectlilo=1
+BootSecurity.passsum=1
+# This next question is controversial -- going with 0
+BootSecurity.secureinittab=0
+# This next item is also not standard practice -- going with 0.
+BootSecurity.lilodelay=0
+# These next five items aren't audited, as they're part of another item.
+BootSecurity.lilosub_drive=0
+BootSecurity.lilosub_floppy=0
+BootSecurity.lilosub_writefloppy=0
+BootSecurity.protectgrub_password=0
+BootSecurity.protectlilo_password=0
+#
+ConfigureMiscPAM.consolelogin=0
+# These items aren't audited, as they're really part of another item.
+ConfigureMiscPAM.consolelogin_accounts=0
+#
+#
+ConfigureMiscPAM.limitsconf = 1
+#
+DisableUserTools.compiler=1
+DNS.namedoff=1
+# RECONSIDER THIS NEXT ONE
+DNS.chrootbind=0
+FilePermissions.suidat=1
+FilePermissions.suidcard=1
+FilePermissions.suiddos=1
+FilePermissions.suiddump=1
+FilePermissions.suidmount=1
+FilePermissions.suidnews=1
+FilePermissions.suidping=1
+FilePermissions.suidprint=1
+FilePermissions.suidrtool=1
+FilePermissions.suidtrace=1
+FilePermissions.suidusernetctl=1
+FilePermissions.suidXFree86=1
+FilePermissions.suidXwrapper=1
+FilePermissions.generalperms_1_1=0
+# This item is just descriptive text.
+FilePermissions.suid=0
+#
+FTP.userftp=1
+FTP.anonftp=1
+# This item is just descriptive text.
+FTP.ftpgeneral=0
+#
+Logging.laus=1
+Logging.morelogging=1
+Logging.pacct=1
+# This item isn't graded by the default weight file.
+Logging.remotelog=0
+# This items aren't audited, as they're really part of another item.
+Logging.remotelog_host=0
+#
+#
+### MiscellaneousDaemons
+# This item is just descriptive text.
+MiscellaneousDaemons.minimalism=0
+#
+#
+MiscellaneousDaemons.apmd=1
+MiscellaneousDaemons.dhcpd=1
+MiscellaneousDaemons.disable_kudzu=1
+MiscellaneousDaemons.gpm=1
+MiscellaneousDaemons.innd=1
+MiscellaneousDaemons.nis_client=1
+MiscellaneousDaemons.nis_server=1
+MiscellaneousDaemons.pcmcia=1
+MiscellaneousDaemons.remotefs=1
+MiscellaneousDaemons.snmpd=1
+MiscellaneousDaemons.disable_routed=1
+MiscellaneousDaemons.disable_gated=1
+MiscellaneousDaemons.disable_bluetooth=1
+MiscellaneousDaemons.rendezvous=1
+MiscellaneousDaemons.disable_isdn=1
+MiscellaneousDaemons.disable_hpoj=1
+#
+### SecureInetd
+SecureInetd.banners=1
+SecureInetd.deactivate_ftp=1
+SecureInetd.deactivate_telnet=1
+SecureInetd.tcpd_default_deny=1
+# These items aren't audited, as they're really part of another item.
+SecureInetd.owner=0
+#
+Sendmail.sendmailcron=0
+Sendmail.sendmaildaemon=1
+Sendmail.vrfyexpn=1
+#
+Printing.printing=1
+Printing.printing_cups=1
+Printing.printing_cups_lpd_legacy=1
+#
+# Firewall isn't audited -- this would be amazingly hard.
+Firewall.ip_intro=0
+Firewall.ip_detail_level_kludge=0
+Firewall.ip_exp_type=0
+Firewall.ip_advnetwork=0
+Firewall.ip_s_dns=0
+Firewall.ip_s_trustiface=0
+Firewall.ip_s_publiciface=0
+Firewall.ip_s_internaliface=0
+Firewall.ip_s_tcpaudit=0
+Firewall.ip_s_udpaudit=0
+Firewall.ip_s_icmpaudit=0
+Firewall.ip_s_publictcp=0
+Firewall.ip_s_publicudp=0
+Firewall.ip_s_internaltcp=0
+Firewall.ip_s_internaludp=0
+Firewall.ip_s_passiveftp=0
+Firewall.ip_s_tcpblock=0
+Firewall.ip_s_udpblock=0
+Firewall.ip_s_icmpallowed=0
+Firewall.ip_s_srcaddr=0
+Firewall.ip_s_ipmasq=0
+Firewall.ip_s_kernelmasq=0
+Firewall.ip_s_rejectmethod=0
+Firewall.ip_s_dhcpiface=0
+Firewall.ip_s_ntpsrv=0
+Firewall.ip_s_icmpout=0
+Firewall.ip_b_dns=0
+Firewall.ip_b_trustiface=0
+Firewall.ip_b_publiciface=0
+Firewall.ip_b_internaliface=0
+Firewall.ip_b_tcpaudit=0
+Firewall.ip_b_udpaudit=0
+Firewall.ip_b_icmpaudit=0
+Firewall.ip_b_publictcp=0
+Firewall.ip_b_publicudp=0
+Firewall.ip_b_internaltcp=0
+Firewall.ip_b_internaludp=0
+Firewall.ip_b_passiveftp=0
+Firewall.ip_b_tcpblock=0
+Firewall.ip_b_udpblock=0
+Firewall.ip_b_icmpallowed=0
+Firewall.ip_b_srcaddr=0
+Firewall.ip_b_ipmasq=0
+Firewall.ip_b_kernelmasq=0
+Firewall.ip_b_rejectmethod=0
+Firewall.ip_b_dhcpiface=0
+Firewall.ip_b_ntpsrv=0
+Firewall.ip_b_icmpout=0
+Firewall.ip_enable_firewall=0
+#
+# Not graded -- this wouldn't make sense.
+PSAD.psad_config=0
+PSAD.psad_check_interval=0
+PSAD.psad_port_range_scan_threshold=0
+PSAD.psad_enable_persistence=0
+PSAD.psad_scan_timeout=0
+PSAD.psad_show_all_signatures=0
+PSAD.psad_danger_levels=0
+PSAD.psad_email_alert_addresses=0
+PSAD.psad_email_alert_danger_level=0
+PSAD.psad_alert_all=0
+PSAD.psad_enable_auto_ids=0
+PSAD.psad_auto_ids_danger_level=0
+PSAD.psad_enable_at_boot=0
+#
+# TMPDIR isn't audited.
+TMPDIR.tmpdir=0

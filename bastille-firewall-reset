@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+#	/sbin/bastille-firewall-reset
+#
+# $Id: bastille-firewall-reset,v 1.3 2005/09/13 03:47:28 fritzr Exp $
+#
+# Script to reset the firewall if, and only if, it is
+# enabled as a "S" init script for this runlevel
+#
+# Note this script is automatically linked in to
+# /etc/dhcpc/dhcpcd-<interface>.exe by the firewall script;
+# if you need a custom /etc/dhcpc/dhcpcd-<interface>.exe
+# app, you should be sure to call this script, too
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License, version 2, under which this file is licensed, for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+INITBASEDIR=/etc/rc.d/init.d
+
+# find our runlevel number
+RUNLEVEL=`runlevel | sed 's:[^0-9]::g'`
+if [ -z "${RUNLEVEL}" ]; then
+	echo "Error: unable to determine runlevel"
+	exit 1
+fi
+
+# see if the firewall script is normally run as an init script
+# (even if normally a "K" for this level: if you're in runlevel 1, where
+#  _normally_ you don't run the firewall, but you go ahead and activate
+#  an interface, chances are you'd prefer to have the firewall up)
+FWALL_CHECK=`ls -l ${INITBASEDIR}/../rc${RUNLEVEL}.d | grep ' [SK]' | grep 'bastille-firewall$' `
+
+if [ -z "${FWALL_CHECK}" ]; then
+	echo "Note: bastille-firewall does not seem to be enabled in runlevel ${RUNLEVEL}"
+	echo "      Firewall script will not be run!"
+	exit
+fi
+
+# looks like we use the firewall in this level
+if [ -x ${INITBASEDIR}/bastille-firewall ]; then
+	# we have a firewall, run it
+	${INITBASEDIR}/bastille-firewall start
+	# See if we need to schedule another reset at DHCP renewal time
+	if [ ! -z "$1" -a -f /etc/sysconfig/network-scripts/ifcfg-${1} ]; then
+		# Load the configuration info for this interface
+		. /etc/sysconfig/network-scripts/ifcfg-${1}
+		if [ "${BOOTPROTO}" = "dhcp" -a -x /sbin/bastille-firewall-schedule ] ; then
+			# Make sure we schedule a lease renewal and firewall reset
+			echo "\"${1}\" is a DHCP-configured interface; scheduling lease renewal"
+			/sbin/bastille-firewall-schedule $1
+		fi
+	fi
+else
+	echo "Error: expected to find ${INITBASEDIR}/bastille-firewall"
+fi
+
+

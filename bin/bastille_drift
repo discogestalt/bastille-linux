@@ -1,0 +1,214 @@
+#!/opt/perl/bin/perl -w
+# for "what":
+# "@(#) bastille_drift: $Revision: 1.12 $"
+# Copyright (C) 2006 Hewlett Packard Development Company, L.P.
+# Licensed under the GNU General Public License, version 2
+##################################################################
+# File: $Id: bastille_drift,v 1.12 2008/10/31 17:12:27 fritzr Exp $
+# Drives management and comparison of baseline files and drift reporting
+###############################################################################
+
+# The purpose of this command is to determine if the system has drifted in its
+# configuration since the establishment of a specified baseline, or to save
+# a baseline for later comparison.
+
+#Left the below commented code in to ease re-addition when we break out libraries
+#more modularly, so we can use them in this script and not introduce scoping issues.
+#push (@INC, "/opt/sec_mgmt/bastille/lib");
+
+use lib "/opt/sec_mgmt/bastille/lib";
+
+use Getopt::Long;
+use POSIX;
+use English;
+use strict;
+
+use Bastille::API;
+
+&ConfigureForDistro();
+
+my $from_baseline = undef;
+my $save_baseline = undef;
+my $uname = &getGlobal("BIN","uname");
+my $Distro = `$uname -s`;
+
+#Place to store the basline on first Bastille run, if none is specified
+my $default_baseline = &getGlobal('BFILE','default_baseline');
+
+# default places to keep the baselines we store
+my $baselineDir = &getGlobal("BDIR","baselines");
+
+#Place to store the drift (ie: diff)
+my $drift_file = &getGlobal('BFILE','drift');
+
+my $assessmentLog = &getGlobal('BFILE','audit_log_file');
+
+#Bastille locations
+my $interactiveBastille = &getGlobal('BFILE','InteractiveBastille');
+my $tempDir = &getGlobal('BDIR','btmp');
+my $lockFile = $tempDir. "/bastille_drift.lock";
+#binaries we use
+my $diff = &getGlobal('BIN','diff');
+my $grep = &getGlobal('BIN','grep');
+my $sort = &getGlobal('BIN','sort');
+my $touch= &getGlobal('BIN','touch');
+
+#Place to keep errors / log inforamtion from underlying Bastille run
+my $drift_log = &getGlobal('BFILE','drift_log');
+my $needBaseline = &getGlobal('BFILE','baseline_flag');
+
+sub unStick{
+;;
+}
+$SIG{TTOU} =\&unStick;
+
+unless ( Getopt::Long::GetOptions("from_baseline:s"     => \$from_baseline,
+				  "save_baseline:s"     => \$save_baseline)){
+    &usage;
+    exit 1;
+}
+my $retval = 0;
+
+if (-e $lockFile){
+   print STDERR "ERROR:   bastille_drift already running, so this attempt aborted.\n".
+         "If you are sure there is no other instance running, then delete the file\n".
+         "$lockFile to clear this condition and re-attempt operation.";
+   $retval = 1;
+} else {
+   system("touch $lockFile");
+   if ((defined($from_baseline)) and (defined($save_baseline))) {
+      $retval = &usage;
+   } elsif (defined($from_baseline)) {
+      $retval = &driftCheck(&correctBaseline($from_baseline));
+   } elsif(defined($save_baseline)) {
+      $retval = &saveBaseline(&correctBaseline($save_baseline));
+   } else {
+      $retval = &driftCheck(&correctBaseline($default_baseline));
+   }
+   unlink($lockFile);
+}
+exit $retval;
+
+
+############################################
+# This routine is the one that runs Bastille(using runAssessment)
+# and sees if drift has ocurred.  It takes one argument,
+# the baseline to which the last run should be compared.
+#
+# The return value will be returned by main() as the exit code.
+############################################
+
+sub driftCheck ($) {
+    my $baseline = $_[0];
+    if ( -e $baseline ) {
+      &runAssessment;
+      if (&isDrifted($baseline)) {
+        print "WARNING: Bastille security configuration has drifted \n".
+             "         since baseline: $baseline. \n";
+        return 92; #Drift Has Occurred Since last bastille run
+      } else {
+        print "NOTE:    No drift in bastille security configuration \n".
+              "         since baseline: $baseline. \n";
+        return 0;
+      }
+    } else {
+      print STDERR "ERROR:   No baseline exists with which to compare current state.\n".
+                   "         Use \'bastille_drift --save_baseline [file]\' to establish one.\n";
+      return 1;
+    }
+}
+
+#######################################
+# This routine decides which baseline to use
+# as basis for comparison
+# based on user input/arguments
+#############################
+
+sub correctBaseline($) {
+    my $baseline = $_[0];
+    if ($baseline =~ /^\/[^\/\s]/){ # A root-anchored path
+	return "$baseline";
+    } elsif ($baseline =~ /^[^\/]/){ #relative path
+	return $baselineDir . "/" . "$baseline";
+    } else {
+        print "NOTE:    Using default baseline: \n" .
+              "         $default_baseline \n";
+	return $default_baseline;
+    }
+}
+
+# This routine is called by driftCheck and saveBaseline to run the assessment
+# if the Bastille-set flag file is set, it removes it before running
+# Bastille to avoid infinite recursion, and replaces it afterwards if the
+# Bastille assessment wasn't successful.
+
+sub runAssessment {
+
+   my $fileRemd=0;
+
+   print "NOTE:    Beginning Bastille configuration assessment.  This may take a few\n";
+   print "         minutes depending on system speed.\n";
+
+   if (-e $needBaseline) {
+      $fileRemd=1;
+      unlink($needBaseline);
+   }
+   system("$interactiveBastille --assessnobrowser >> $drift_log 2>&1");
+   if (&WEXITSTATUS($CHILD_ERROR) != 0 ) {
+      print STDERR "ERROR:   Attempt to establish system state not successful.\n".
+                   "         Drift operation aborted.  See $drift_log for detail.\n";
+      if ($fileRemd) {
+         system("$touch $needBaseline");
+      }
+      return 1;
+
+   } else {
+    return 0;
+   }
+}
+
+sub saveBaseline ($) {
+    use File::Copy;
+
+    my $baseline = $_[0];
+    if (&runAssessment eq 0 ) {
+        print "NOTE:    Saving baseline to: \n".
+        "         $baseline \n";
+        copy("$assessmentLog", "$baseline");
+        return 0;
+    } else {
+        print STDERR "ERROR:   Unable to save baseline\n";
+        return 1;
+    }
+}
+
+sub usage {
+    print STDERR "ERROR:   Invalid Option\n\n".
+	"Usage: bastille_drift \n".
+        "       bastille_drift --from_baseline [baseline]\n".
+	"       bastille_drift --save_baseline [baseline]\n\n".
+	"--from_baseline: Compare system state to specified (or default) baseline\n".
+	"--save_baseline: Establish or update specified (or default) baseline\n";
+        return 1;
+}
+
+sub isDrifted {
+
+    my $baseline = $_[0];
+
+    my $tempFile1 = $tempDir . "/tempFile1";
+    my $tempFile2 = $tempDir . "/tempFile2";
+
+    if ( -f $baseline ) {
+	system ("$grep -Ev -e '^#' $baseline | $sort > $tempFile1");
+	system ("$sort $assessmentLog > $tempFile2");
+	if (system("$diff $tempFile1 $tempFile2 > $drift_file")) {
+	    return 1; #TRUE;
+	} else {
+	    return 0; #FALSE
+	}
+        unlink ($tempFile1, $tempFile2);
+    } else {
+	print "NOTE:    No baseline found for comparison (drift does not apply)\n";
+    }
+}
