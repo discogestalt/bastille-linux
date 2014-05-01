@@ -135,14 +135,14 @@ use Exporter;
     B_create_dir B_create_log_file
     B_delete_file
     B_cp B_place B_mknod
-    showDisclaimer 
-    getSupportedOSHash 
+    showDisclaimer
+    getSupportedOSHash
     B_Backtick
     B_System
     isProcessRunning
     checkProcsForService
-    
-    
+
+
     $GLOBAL_OS $GLOBAL_ACTUAL_OS $CLI
     $GLOBAL_LOGONLY $GLOBAL_VERBOSE $GLOBAL_DEBUG $GLOBAL_AUDITONLY $GLOBAL_AUDIT_NO_BROWSER $errorFlag
     %GLOBAL_BIN %GLOBAL_DIR %GLOBAL_FILE
@@ -151,14 +151,14 @@ use Exporter;
 
     %GLOBAL_SERVICE %GLOBAL_SERVTYPE %GLOBAL_PROCESS %GLOBAL_RC_CONFIG
     %GLOBAL_TEST
-    
+
     getGlobal setGlobal getGlobalConfig
-    
-    
+
+
     B_parse_fstab
-    B_parse_mtab B_is_rpm_up_to_date 
-    
-    NOTSECURE_CAN_CHANGE SECURE_CANT_CHANGE  
+    B_parse_mtab B_is_rpm_up_to_date
+
+    NOTSECURE_CAN_CHANGE SECURE_CANT_CHANGE
     NOT_INSTALLED  INCONSISTENT MANUAL NOTEST SECURE_CAN_CHANGE
     STRING_NOT_DEFINED NOT_INSTALLED_NOTSECURE DONT_KNOW
     RELEVANT_HEADERQ NOTRELEVANT_HEADERQ
@@ -355,7 +355,7 @@ sub GetDistro() {
             }
 	    elsif ($release =~ /^Fedora release (\d+\.?\d*)/) {
                 $distro = "RHFC$1";
-            } 
+            }
             else {
                 print STDERR "$err Could not determine Fedora version! Setting to Fedora Core 16\n";
                 $distro='RHFC16';
@@ -365,37 +365,39 @@ sub GetDistro() {
 	    open(*REDHAT_RELEASE,"/etc/redhat-release");
 	    $release=<REDHAT_RELEASE>;
 	    if ($release =~ /^Red Hat Linux release (\d+\.?\d*\w*)/) {
-		$distro="RH$1";
-	    }
-            elsif ($release =~ /^Red Hat Linux .+ release (\d+)\.?\d*([AEW]S)/) {
+			$distro="RH$1";
+	    } elsif ($release =~ /^Red Hat Linux .+ release (\d+)\.?\d*([AEW]S)/) {
                 $distro="RHEL$1$2";
+        } elsif ($release =~ /^Red Hat Enterprise Linux ([AEW]S) release (\d+)/) {
+			$distro="RHEL$2$1";
+	    } elsif ($release =~ /^CentOS release (\d+\.\d+)/) {
+			my $version = $1;
+            if ($version =~ /^6\./) {
+                $distro='RHEL6';
+            } elsif ($version =~ /^5\./) {
+                $distro='RHEL5';
+            } elsif ($version =~ /^4\./) {
+		        $distro='RHEL4AS';
+			} elsif ($version =~ /^3\./) {
+		        $distro='RHEL3AS';
+			} else {
+		        print STDERR "$err Could not determine CentOS version! Setting to Red Hat Enterprise 6.\n";
+		        $distro='RHEL6';
             }
-	    elsif ($release =~ /^Red Hat Enterprise Linux ([AEW]S) release (\d+)/) {
-		$distro="RHEL$2$1";
-	    }
-	    elsif ($release =~ /^CentOS release (\d+\.\d+)/) {
-		my $version = $1;
-                if ($version =~ /^6\./) {
-                    $distro='RHEL6';
-                }
-                elsif ($version =~ /^5\./) {
-                    $distro='RHEL5';
-                }
-		elsif ($version =~ /^4\./) {
-		    $distro='RHEL4AS';
-		}
-		elsif ($version =~ /^3\./) {
-		    $distro='RHEL3AS';
-		}
-		else {
-		    print STDERR "$err Could not determine CentOS version! Setting to Red Hat Enterprise 6.\n";
-		    $distro='RHEL6';
-                 }
-	    }
- 	    else {
-		# JJB/HP - Should this be B_log?
-		print STDERR "$err Couldn't determine Red Hat version! Setting to 9!\n";
-		$distro="RH9";
+        } elsif ($release =~ /^Scientific Linux release (\d+\.\d+)/) {
+            my $version = $1;
+            if ($version =~ /^6\./) {
+                $distro='RHEL6';
+            } elsif ($version =~ /^5\./) {
+                $distro='RHEL5';
+            } else {
+                print STDERR "$err could not determine Scientific Linux version! Setting to Red Hat Enterprise 6.\n";
+                $distro='RHEL6';
+            }
+	    } else {
+			# JJB/HP - Should this be B_log?
+			print STDERR "$err Couldn't determine Red Hat version! Setting to 9!\n";
+			$distro="RH9";
 	    }
 	    close(REDHAT_RELEASE);
 
@@ -483,7 +485,7 @@ sub GetDistro() {
 		     if ( $srpmode =~ /^SRP is in (\w+) Namespace mode/ ) {
 			     if ($1 eq "Single") {
 				     $distro .= 'SRP';
-			     } elsif ($1 eq "Multiple") { 
+			     } elsif ($1 eq "Multiple") {
 				     $distro .= 'SRP';
 			     } else {
 				     $distro .= 'SRPv?';
@@ -492,7 +494,7 @@ sub GetDistro() {
 		     if ( $srpscope =~ /^Process is in (\w+) scope/ ) {
 			     if ($1 eq "shared") {
 				     $distro .= 'host';
-			     } elsif ($1 eq "private") { 
+			     } elsif ($1 eq "private") {
 				     $distro .= 'cont';
 			     } else {
 				     $distro .= 'unknown';
@@ -732,7 +734,7 @@ sub setServiceInfo($$) {
 	    chomp $service;
 	    my ($serviceID,$servType,$strConfigList,$strServiceList,
 		$strProcessList,@distroList) = split /\s*,\s*/, $service;
-            
+
             sub MakeArrayFromString($){
                 my $entryString = $_[0];
                 my @destArray = ();
@@ -1184,7 +1186,7 @@ sub B_close_plus {
     if ( compare_text( "$file", "$file.bastille" ) == 0 ) {
 	unlink "$file.bastille"; # delete temporary file
 	&B_log("DEBUG","B_close_plus: Closed $file without change or backup \n");
-	$retval = 0;  
+	$retval = 0;
     }
 
     #
@@ -2214,7 +2216,7 @@ sub isProcessRunning($) {
             push @procList, $process . "\n";
         }
     }
-    
+
     &B_log("DEBUG","$procPattern search yielded $isRunning\n\n");
     # if this subroutine was called in scalar context
     if( ! wantarray ) {
